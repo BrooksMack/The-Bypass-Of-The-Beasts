@@ -32,10 +32,21 @@ impl IsoInfo {
             return Err("This file does not look like Windows installation media (no sources\\install.wim or install.esd found).".into());
         }
         match (guest, self.arch) {
-            (GuestArch::X64, Some(GuestArch::X64)) | (GuestArch::Arm64, Some(GuestArch::Arm64)) => Ok(()),
-            (GuestArch::Arm64, Some(GuestArch::X64)) => Err("This is a Windows x64 ISO, but this computer needs the Windows 11 ARM64 ISO.".into()),
-            (GuestArch::X64, Some(GuestArch::Arm64)) => Err("This is a Windows ARM64 ISO, but this computer needs the Windows 11 x64 ISO.".into()),
-            (_, None) => Err("Could not find an EFI boot loader on this ISO, so it cannot boot a Windows 11 VM.".into()),
+            (GuestArch::X64, Some(GuestArch::X64)) | (GuestArch::Arm64, Some(GuestArch::Arm64)) => {
+                Ok(())
+            }
+            (GuestArch::Arm64, Some(GuestArch::X64)) => Err(
+                "This is a Windows x64 ISO, but this computer needs the Windows 11 ARM64 ISO."
+                    .into(),
+            ),
+            (GuestArch::X64, Some(GuestArch::Arm64)) => Err(
+                "This is a Windows ARM64 ISO, but this computer needs the Windows 11 x64 ISO."
+                    .into(),
+            ),
+            (_, None) => Err(
+                "Could not find an EFI boot loader on this ISO, so it cannot boot a Windows 11 VM."
+                    .into(),
+            ),
         }
     }
 }
@@ -53,7 +64,8 @@ pub fn inspect_reader<R: Read + Seek>(r: &mut R, size_bytes: u64, path: &str) ->
     let mut joliet_root: Option<(u64, u64)> = None;
     for i in 16..48u64 {
         let mut buf = [0u8; 2048];
-        r.seek(SeekFrom::Start(i * SECTOR)).map_err(|e| CoreError::io(path, e))?;
+        r.seek(SeekFrom::Start(i * SECTOR))
+            .map_err(|e| CoreError::io(path, e))?;
         if r.read_exact(&mut buf).is_err() {
             break;
         }
@@ -71,7 +83,9 @@ pub fn inspect_reader<R: Read + Seek>(r: &mut R, size_bytes: u64, path: &str) ->
             _ => {}
         }
     }
-    let pvd = pvd.ok_or_else(|| CoreError::InvalidInput("Not an ISO-9660 image (no primary volume descriptor).".into()))?;
+    let pvd = pvd.ok_or_else(|| {
+        CoreError::InvalidInput("Not an ISO-9660 image (no primary volume descriptor).".into())
+    })?;
     let volume_id = String::from_utf8_lossy(&pvd[40..72]).trim().to_string();
     let (root_extent, root_len) = root_record(&pvd[156..190]);
 
@@ -82,12 +96,16 @@ pub fn inspect_reader<R: Read + Seek>(r: &mut R, size_bytes: u64, path: &str) ->
                 return true;
             }
         }
-        matches!(path_exists(r, root_extent, root_len, names, false), Ok(true))
+        matches!(
+            path_exists(r, root_extent, root_len, names, false),
+            Ok(true)
+        )
     };
 
     let has_efi_x64_boot = probe(&["EFI", "BOOT", "BOOTX64.EFI"]);
     let has_efi_arm64_boot = probe(&["EFI", "BOOT", "BOOTAA64.EFI"]);
-    let has_install_image = probe(&["SOURCES", "INSTALL.WIM"]) || probe(&["SOURCES", "INSTALL.ESD"]);
+    let has_install_image =
+        probe(&["SOURCES", "INSTALL.WIM"]) || probe(&["SOURCES", "INSTALL.ESD"]);
 
     let arch = match (has_efi_x64_boot, has_efi_arm64_boot) {
         (true, false) => Some(GuestArch::X64),
@@ -123,13 +141,26 @@ fn root_record(rec: &[u8]) -> (u64, u64) {
 }
 
 /// Walk a directory chain looking for `names` (case-insensitive). Returns Ok(true) if found.
-fn path_exists<R: Read + Seek>(r: &mut R, mut extent: u64, mut len: u64, names: &[&str], joliet: bool) -> Result<bool> {
+fn path_exists<R: Read + Seek>(
+    r: &mut R,
+    mut extent: u64,
+    mut len: u64,
+    names: &[&str],
+    joliet: bool,
+) -> Result<bool> {
     for (i, want) in names.iter().enumerate() {
         let last = i == names.len() - 1;
         let mut found = None;
         let mut data = vec![0u8; len.min(64 * SECTOR) as usize];
-        r.seek(SeekFrom::Start(extent * SECTOR)).map_err(|e| CoreError::Io { path: String::new(), message: e.to_string() })?;
-        let n = r.read(&mut data).map_err(|e| CoreError::Io { path: String::new(), message: e.to_string() })?;
+        r.seek(SeekFrom::Start(extent * SECTOR))
+            .map_err(|e| CoreError::Io {
+                path: String::new(),
+                message: e.to_string(),
+            })?;
+        let n = r.read(&mut data).map_err(|e| CoreError::Io {
+            path: String::new(),
+            message: e.to_string(),
+        })?;
         data.truncate(n);
         let mut off = 0usize;
         while off + 33 <= data.len() {
@@ -147,7 +178,11 @@ fn path_exists<R: Read + Seek>(r: &mut R, mut extent: u64, mut len: u64, names: 
             let flags = rec[25];
             let raw_name = &rec[33..(33 + name_len).min(rec.len())];
             let name = if joliet {
-                let units: Vec<u16> = raw_name.chunks(2).filter(|c| c.len() == 2).map(|c| u16::from_be_bytes([c[0], c[1]])).collect();
+                let units: Vec<u16> = raw_name
+                    .chunks(2)
+                    .filter(|c| c.len() == 2)
+                    .map(|c| u16::from_be_bytes([c[0], c[1]]))
+                    .collect();
                 String::from_utf16_lossy(&units)
             } else {
                 String::from_utf8_lossy(raw_name).into_owned()
@@ -193,11 +228,18 @@ pub mod testutil {
         Entry { name, children }
     }
     pub fn file(name: &'static str) -> Entry {
-        Entry { name, children: vec![] }
+        Entry {
+            name,
+            children: vec![],
+        }
     }
 
     fn record(name: &str, extent: u32, len: u32, is_dir: bool) -> Vec<u8> {
-        let id: Vec<u8> = if is_dir { name.as_bytes().to_vec() } else { format!("{name};1").into_bytes() };
+        let id: Vec<u8> = if is_dir {
+            name.as_bytes().to_vec()
+        } else {
+            format!("{name};1").into_bytes()
+        };
         let mut rec = vec![0u8; 33 + id.len()];
         if rec.len() % 2 == 1 {
             rec.push(0);
@@ -275,7 +317,13 @@ mod tests {
     fn detects_arm64_windows_iso() {
         let img = build_iso(
             "CCCOMA_A64FRE_EN-US_DV9",
-            dir("", vec![dir("EFI", vec![dir("BOOT", vec![file("BOOTAA64.EFI")])]), dir("SOURCES", vec![file("INSTALL.WIM")])]),
+            dir(
+                "",
+                vec![
+                    dir("EFI", vec![dir("BOOT", vec![file("BOOTAA64.EFI")])]),
+                    dir("SOURCES", vec![file("INSTALL.WIM")]),
+                ],
+            ),
         );
         let info = inspect_reader(&mut Cursor::new(&img), img.len() as u64, "test.iso").unwrap();
         assert_eq!(info.volume_id, "CCCOMA_A64FRE_EN-US_DV9");
@@ -283,24 +331,45 @@ mod tests {
         assert!(info.looks_like_windows);
         assert_eq!(info.language_hint.as_deref(), Some("EN-US"));
         assert!(info.suitable_for(GuestArch::Arm64).is_ok());
-        assert!(info.suitable_for(GuestArch::X64).unwrap_err().contains("ARM64 ISO"));
+        assert!(info
+            .suitable_for(GuestArch::X64)
+            .unwrap_err()
+            .contains("ARM64 ISO"));
     }
 
     #[test]
     fn detects_x64_windows_iso_with_esd() {
         let img = build_iso(
             "CCCOMA_X64FRE_DE-DE_DV9",
-            dir("", vec![dir("EFI", vec![dir("BOOT", vec![file("BOOTX64.EFI")])]), dir("SOURCES", vec![file("INSTALL.ESD")])]),
+            dir(
+                "",
+                vec![
+                    dir("EFI", vec![dir("BOOT", vec![file("BOOTX64.EFI")])]),
+                    dir("SOURCES", vec![file("INSTALL.ESD")]),
+                ],
+            ),
         );
         let info = inspect_reader(&mut Cursor::new(&img), img.len() as u64, "x.iso").unwrap();
         assert_eq!(info.arch, Some(GuestArch::X64));
         assert!(info.suitable_for(GuestArch::X64).is_ok());
-        assert!(info.suitable_for(GuestArch::Arm64).unwrap_err().contains("x64 ISO"));
+        assert!(info
+            .suitable_for(GuestArch::Arm64)
+            .unwrap_err()
+            .contains("x64 ISO"));
     }
 
     #[test]
     fn rejects_non_windows_iso() {
-        let img = build_iso("UBUNTU", dir("", vec![dir("EFI", vec![dir("BOOT", vec![file("BOOTX64.EFI")])]), dir("CASPER", vec![file("VMLINUZ")])]));
+        let img = build_iso(
+            "UBUNTU",
+            dir(
+                "",
+                vec![
+                    dir("EFI", vec![dir("BOOT", vec![file("BOOTX64.EFI")])]),
+                    dir("CASPER", vec![file("VMLINUZ")]),
+                ],
+            ),
+        );
         let info = inspect_reader(&mut Cursor::new(&img), img.len() as u64, "u.iso").unwrap();
         assert!(!info.looks_like_windows);
         assert!(info.suitable_for(GuestArch::X64).is_err());

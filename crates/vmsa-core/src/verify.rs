@@ -11,11 +11,17 @@ use crate::{CoreError, Result};
 /// Compute the SHA-256 of a file, streaming, with optional progress and cancellation.
 pub async fn sha256_file(
     path: &Path,
-    mut progress: Option<&mut dyn FnMut(u64, u64)>,
+    mut progress: Option<&mut (dyn FnMut(u64, u64) + Send)>,
     cancel: Option<&crate::cmd::tokio_util_lite::CancellationToken>,
 ) -> Result<String> {
-    let mut f = tokio::fs::File::open(path).await.map_err(|e| CoreError::io(path, e))?;
-    let total = f.metadata().await.map_err(|e| CoreError::io(path, e))?.len();
+    let mut f = tokio::fs::File::open(path)
+        .await
+        .map_err(|e| CoreError::io(path, e))?;
+    let total = f
+        .metadata()
+        .await
+        .map_err(|e| CoreError::io(path, e))?
+        .len();
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; 1024 * 1024];
     let mut done = 0u64;
@@ -68,8 +74,13 @@ pub fn parse_sha256sums(text: &str) -> Vec<ChecksumEntry> {
         .collect()
 }
 
-pub fn find_checksum<'a>(entries: &'a [ChecksumEntry], file_name: &str) -> Option<&'a ChecksumEntry> {
-    entries.iter().find(|e| e.file_name.eq_ignore_ascii_case(file_name))
+pub fn find_checksum<'a>(
+    entries: &'a [ChecksumEntry],
+    file_name: &str,
+) -> Option<&'a ChecksumEntry> {
+    entries
+        .iter()
+        .find(|e| e.file_name.eq_ignore_ascii_case(file_name))
 }
 
 pub fn is_sha256_hex(s: &str) -> bool {
@@ -89,7 +100,13 @@ mod tests {
         let e = parse_sha256sums(text);
         assert_eq!(e.len(), 2);
         assert_eq!(e[0].file_name, "VirtualBox-7.2.20-175154-Win.exe");
-        assert_eq!(find_checksum(&e, "virtualbox-7.2.20-175154-macosarm64.dmg").unwrap().sha256.len(), 64);
+        assert_eq!(
+            find_checksum(&e, "virtualbox-7.2.20-175154-macosarm64.dmg")
+                .unwrap()
+                .sha256
+                .len(),
+            64
+        );
         assert!(find_checksum(&e, "nope").is_none());
     }
 
@@ -99,6 +116,9 @@ mod tests {
         let p = dir.path().join("hello.txt");
         std::fs::write(&p, b"hello").unwrap();
         let h = sha256_file(&p, None, None).await.unwrap();
-        assert_eq!(h, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            h,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 }

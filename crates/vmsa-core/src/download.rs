@@ -93,12 +93,20 @@ pub async fn download(
     cancel: &CancellationToken,
 ) -> Result<DownloadResult> {
     if let Some(dir) = spec.dest.parent() {
-        tokio::fs::create_dir_all(dir).await.map_err(|e| CoreError::io(dir, e))?;
+        tokio::fs::create_dir_all(dir)
+            .await
+            .map_err(|e| CoreError::io(dir, e))?;
     }
 
     // Already complete?
     if spec.dest.is_file() {
-        progress(DownloadProgress { bytes_done: 0, bytes_total: None, bytes_per_sec: 0.0, resumed_from: 0, phase: DownloadPhase::Verifying });
+        progress(DownloadProgress {
+            bytes_done: 0,
+            bytes_total: None,
+            bytes_per_sec: 0.0,
+            resumed_from: 0,
+            phase: DownloadPhase::Verifying,
+        });
         match finish_verify(spec, cancel).await {
             Ok(r) => return Ok(r),
             Err(CoreError::ChecksumMismatch { .. }) => {
@@ -116,13 +124,25 @@ pub async fn download(
         Err(_) => PartMeta::default(),
     };
     if part.is_file() && meta.url == spec.url {
-        resume_from = tokio::fs::metadata(&part).await.map(|m| m.len()).unwrap_or(0);
+        resume_from = tokio::fs::metadata(&part)
+            .await
+            .map(|m| m.len())
+            .unwrap_or(0);
     } else {
         let _ = tokio::fs::remove_file(&part).await;
-        meta = PartMeta { url: spec.url.clone(), ..Default::default() };
+        meta = PartMeta {
+            url: spec.url.clone(),
+            ..Default::default()
+        };
     }
 
-    progress(DownloadProgress { bytes_done: resume_from, bytes_total: meta.total, bytes_per_sec: 0.0, resumed_from: resume_from, phase: DownloadPhase::Connecting });
+    progress(DownloadProgress {
+        bytes_done: resume_from,
+        bytes_total: meta.total,
+        bytes_per_sec: 0.0,
+        resumed_from: resume_from,
+        phase: DownloadPhase::Connecting,
+    });
 
     let mut req = client.get(&spec.url);
     if resume_from > 0 {
@@ -140,12 +160,17 @@ pub async fn download(
     let status = resp.status();
     if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
         // The part file may already be complete; try verifying it.
-        tokio::fs::rename(&part, &spec.dest).await.map_err(|e| CoreError::io(&part, e))?;
+        tokio::fs::rename(&part, &spec.dest)
+            .await
+            .map_err(|e| CoreError::io(&part, e))?;
         let _ = tokio::fs::remove_file(&meta_path).await;
         return finish_verify(spec, cancel).await;
     }
     if !status.is_success() {
-        return Err(CoreError::Download(format!("{}: the server answered {} for {}", spec.display_name, status, spec.source_label)));
+        return Err(CoreError::Download(format!(
+            "{}: the server answered {} for {}",
+            spec.display_name, status, spec.source_label
+        )));
     }
     let resumed = status == reqwest::StatusCode::PARTIAL_CONTENT && resume_from > 0;
     if !resumed {
@@ -164,8 +189,14 @@ pub async fn download(
     } else {
         content_len
     };
-    meta.etag = headers.get(reqwest::header::ETAG).and_then(|v| v.to_str().ok()).map(String::from);
-    meta.last_modified = headers.get(reqwest::header::LAST_MODIFIED).and_then(|v| v.to_str().ok()).map(String::from);
+    meta.etag = headers
+        .get(reqwest::header::ETAG)
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
+    meta.last_modified = headers
+        .get(reqwest::header::LAST_MODIFIED)
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
     meta.total = total;
     if let Ok(b) = serde_json::to_vec(&meta) {
         let _ = tokio::fs::write(&meta_path, b).await;
@@ -196,8 +227,16 @@ pub async fn download(
             }
         };
         let Some(chunk) = chunk else { break };
-        let chunk = chunk.map_err(|e| CoreError::Download(format!("{}: connection interrupted ({})", spec.display_name, describe_reqwest(&e))))?;
-        file.write_all(&chunk).await.map_err(|e| CoreError::io(&part, e))?;
+        let chunk = chunk.map_err(|e| {
+            CoreError::Download(format!(
+                "{}: connection interrupted ({})",
+                spec.display_name,
+                describe_reqwest(&e)
+            ))
+        })?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| CoreError::io(&part, e))?;
         done += chunk.len() as u64;
         window_bytes += chunk.len() as u64;
         if window_start.elapsed() >= Duration::from_secs(1) {
@@ -207,7 +246,13 @@ pub async fn download(
         }
         if last_emit.elapsed() >= Duration::from_millis(250) {
             last_emit = Instant::now();
-            progress(DownloadProgress { bytes_done: done, bytes_total: total, bytes_per_sec: rate, resumed_from: resume_from, phase: DownloadPhase::Downloading });
+            progress(DownloadProgress {
+                bytes_done: done,
+                bytes_total: total,
+                bytes_per_sec: rate,
+                resumed_from: resume_from,
+                phase: DownloadPhase::Downloading,
+            });
         }
     }
     file.flush().await.map_err(|e| CoreError::io(&part, e))?;
@@ -216,36 +261,62 @@ pub async fn download(
 
     if let Some(t) = total {
         if done != t {
-            return Err(CoreError::Download(format!("{}: connection closed early ({done} of {t} bytes). Retry to resume.", spec.display_name)));
+            return Err(CoreError::Download(format!(
+                "{}: connection closed early ({done} of {t} bytes). Retry to resume.",
+                spec.display_name
+            )));
         }
     }
     if let Some(expected) = spec.expected_size {
         if done != expected {
             let _ = tokio::fs::remove_file(&part).await;
             let _ = tokio::fs::remove_file(&meta_path).await;
-            return Err(CoreError::Download(format!("{}: unexpected size {done} (expected {expected})", spec.display_name)));
+            return Err(CoreError::Download(format!(
+                "{}: unexpected size {done} (expected {expected})",
+                spec.display_name
+            )));
         }
     }
-    tokio::fs::rename(&part, &spec.dest).await.map_err(|e| CoreError::io(&part, e))?;
+    tokio::fs::rename(&part, &spec.dest)
+        .await
+        .map_err(|e| CoreError::io(&part, e))?;
     let _ = tokio::fs::remove_file(&meta_path).await;
-    progress(DownloadProgress { bytes_done: done, bytes_total: total, bytes_per_sec: rate, resumed_from: resume_from, phase: DownloadPhase::Verifying });
+    progress(DownloadProgress {
+        bytes_done: done,
+        bytes_total: total,
+        bytes_per_sec: rate,
+        resumed_from: resume_from,
+        phase: DownloadPhase::Verifying,
+    });
     finish_verify(spec, cancel).await
 }
 
 async fn finish_verify(spec: &DownloadSpec, cancel: &CancellationToken) -> Result<DownloadResult> {
-    let size = tokio::fs::metadata(&spec.dest).await.map_err(|e| CoreError::io(&spec.dest, e))?.len();
+    let size = tokio::fs::metadata(&spec.dest)
+        .await
+        .map_err(|e| CoreError::io(&spec.dest, e))?
+        .len();
     let sha256 = verify::sha256_file(&spec.dest, None, Some(cancel)).await?;
     let verified = match &spec.expected_sha256 {
         Some(exp) => {
             if !exp.eq_ignore_ascii_case(&sha256) {
                 let _ = tokio::fs::remove_file(&spec.dest).await;
-                return Err(CoreError::ChecksumMismatch { file: spec.dest.display().to_string(), expected: exp.to_ascii_lowercase(), actual: sha256 });
+                return Err(CoreError::ChecksumMismatch {
+                    file: spec.dest.display().to_string(),
+                    expected: exp.to_ascii_lowercase(),
+                    actual: sha256,
+                });
             }
             true
         }
         None => false,
     };
-    Ok(DownloadResult { path: spec.dest.clone(), size, sha256, verified })
+    Ok(DownloadResult {
+        path: spec.dest.clone(),
+        size,
+        sha256,
+        verified,
+    })
 }
 
 fn describe_reqwest(e: &reqwest::Error) -> String {
@@ -295,9 +366,18 @@ pub fn vbox_file_url(version: &str, file: &str) -> String {
 pub fn pinned_fallback(os: HostOs, arch: Arch) -> Option<VirtualBoxRelease> {
     let version = "7.2.20";
     let (file, sha) = match (os, arch) {
-        (HostOs::Windows, Arch::X86_64) => ("VirtualBox-7.2.20-175154-Win.exe", "a81777d2b36380ce042a29e9c554cf032eb46a793f62e3cc82e7411e535c2c26"),
-        (HostOs::MacOs, Arch::Aarch64) => ("VirtualBox-7.2.20-175154-macOSArm64.dmg", "186eb4734234bcf20bc71c577060045507aa0769912e7664735ad18cd7458d8d"),
-        (HostOs::MacOs, Arch::X86_64) => ("VirtualBox-7.2.20-175154-OSX.dmg", "8d171af268b08b3416978d09fd2d6a22866962172891d02b906ad2a87e55752f"),
+        (HostOs::Windows, Arch::X86_64) => (
+            "VirtualBox-7.2.20-175154-Win.exe",
+            "a81777d2b36380ce042a29e9c554cf032eb46a793f62e3cc82e7411e535c2c26",
+        ),
+        (HostOs::MacOs, Arch::Aarch64) => (
+            "VirtualBox-7.2.20-175154-macOSArm64.dmg",
+            "186eb4734234bcf20bc71c577060045507aa0769912e7664735ad18cd7458d8d",
+        ),
+        (HostOs::MacOs, Arch::X86_64) => (
+            "VirtualBox-7.2.20-175154-OSX.dmg",
+            "8d171af268b08b3416978d09fd2d6a22866962172891d02b906ad2a87e55752f",
+        ),
         _ => return None,
     };
     Some(VirtualBoxRelease {
@@ -321,11 +401,18 @@ pub fn vbox_package_suffix(os: HostOs, arch: Arch) -> Option<&'static str> {
 }
 
 /// Choose the host package from an Oracle SHA256SUMS listing (pure, testable).
-pub fn select_release(version: &str, sums: &str, os: HostOs, arch: Arch) -> Option<VirtualBoxRelease> {
+pub fn select_release(
+    version: &str,
+    sums: &str,
+    os: HostOs,
+    arch: Arch,
+) -> Option<VirtualBoxRelease> {
     let suffix = vbox_package_suffix(os, arch)?;
     let prefix = format!("VirtualBox-{version}-");
     let entries = verify::parse_sha256sums(sums);
-    let e = entries.iter().find(|e| e.file_name.starts_with(&prefix) && e.file_name.ends_with(suffix))?;
+    let e = entries
+        .iter()
+        .find(|e| e.file_name.starts_with(&prefix) && e.file_name.ends_with(suffix))?;
     Some(VirtualBoxRelease {
         version: version.into(),
         file_name: e.file_name.clone(),
@@ -338,11 +425,27 @@ pub fn select_release(version: &str, sums: &str, os: HostOs, arch: Arch) -> Opti
 
 /// Resolve the current VirtualBox package for this host from Oracle's own metadata, falling
 /// back to the pinned release when the site is unreachable (the fallback is labelled as such).
-pub async fn resolve_virtualbox_release(client: &reqwest::Client, os: HostOs, arch: Arch) -> Result<VirtualBoxRelease> {
+pub async fn resolve_virtualbox_release(
+    client: &reqwest::Client,
+    os: HostOs,
+    arch: Arch,
+) -> Result<VirtualBoxRelease> {
     let live = async {
-        let version = client.get(VBOX_LATEST_URL).send().await?.error_for_status()?.text().await?;
+        let version = client
+            .get(VBOX_LATEST_URL)
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
         let version = version.trim().to_string();
-        let sums = client.get(vbox_sha256sums_url(&version)).send().await?.error_for_status()?.text().await?;
+        let sums = client
+            .get(vbox_sha256sums_url(&version))
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
         Ok::<_, reqwest::Error>((version, sums))
     };
     match tokio::time::timeout(Duration::from_secs(45), live).await {
@@ -350,12 +453,19 @@ pub async fn resolve_virtualbox_release(client: &reqwest::Client, os: HostOs, ar
             if let Some(r) = select_release(&version, &sums, os, arch) {
                 return Ok(r);
             }
-            tracing::warn!(version, "no matching package in SHA256SUMS; using pinned fallback");
+            tracing::warn!(
+                version,
+                "no matching package in SHA256SUMS; using pinned fallback"
+            );
         }
-        Ok(Err(e)) => tracing::warn!(error = %e, "could not reach virtualbox.org; using pinned fallback"),
+        Ok(Err(e)) => {
+            tracing::warn!(error = %e, "could not reach virtualbox.org; using pinned fallback")
+        }
         Err(_) => tracing::warn!("virtualbox.org metadata timed out; using pinned fallback"),
     }
-    pinned_fallback(os, arch).ok_or_else(|| CoreError::Unsupported("No VirtualBox package is known for this computer type.".into()))
+    pinned_fallback(os, arch).ok_or_else(|| {
+        CoreError::Unsupported("No VirtualBox package is known for this computer type.".into())
+    })
 }
 
 #[cfg(test)]
@@ -374,7 +484,10 @@ a81777d2b36380ce042a29e9c554cf032eb46a793f62e3cc82e7411e535c2c26 *VirtualBox-7.2
     fn selects_correct_package_per_host() {
         let w = select_release("7.2.20", SUMS, HostOs::Windows, Arch::X86_64).unwrap();
         assert_eq!(w.file_name, "VirtualBox-7.2.20-175154-Win.exe");
-        assert_eq!(w.url, "https://download.virtualbox.org/virtualbox/7.2.20/VirtualBox-7.2.20-175154-Win.exe");
+        assert_eq!(
+            w.url,
+            "https://download.virtualbox.org/virtualbox/7.2.20/VirtualBox-7.2.20-175154-Win.exe"
+        );
         assert_eq!(w.checksum_source, ChecksumSource::OracleSha256Sums);
         let m = select_release("7.2.20", SUMS, HostOs::MacOs, Arch::Aarch64).unwrap();
         assert!(m.file_name.ends_with("macOSArm64.dmg"));
@@ -411,11 +524,15 @@ a81777d2b36380ce042a29e9c554cf032eb46a793f62e3cc82e7411e535c2c26 *VirtualBox-7.2
             source_label: "test".into(),
             url: "http://127.0.0.1:9/unreachable".into(),
             dest: dest.clone(),
-            expected_sha256: Some("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".into()),
+            expected_sha256: Some(
+                "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".into(),
+            ),
             expected_size: None,
         };
         let client = http_client().unwrap();
-        let r = download(&client, &spec, |_| {}, &CancellationToken::new()).await.unwrap();
+        let r = download(&client, &spec, |_| {}, &CancellationToken::new())
+            .await
+            .unwrap();
         assert!(r.verified);
         assert_eq!(r.size, 5);
     }
@@ -430,12 +547,16 @@ a81777d2b36380ce042a29e9c554cf032eb46a793f62e3cc82e7411e535c2c26 *VirtualBox-7.2
             source_label: "test".into(),
             url: "http://127.0.0.1:9/unreachable".into(),
             dest: dest.clone(),
-            expected_sha256: Some("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".into()),
+            expected_sha256: Some(
+                "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824".into(),
+            ),
             expected_size: None,
         };
         let client = http_client().unwrap();
         // The corrupt file is discarded and a download is attempted, which fails (unreachable).
-        let err = download(&client, &spec, |_| {}, &CancellationToken::new()).await.unwrap_err();
+        let err = download(&client, &spec, |_| {}, &CancellationToken::new())
+            .await
+            .unwrap_err();
         assert!(matches!(err, CoreError::Download(_)), "{err:?}");
         assert!(!dest.exists());
     }

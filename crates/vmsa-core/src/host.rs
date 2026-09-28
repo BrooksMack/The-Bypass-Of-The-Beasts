@@ -110,7 +110,9 @@ impl HostInfo {
     pub fn is_supported_host(&self) -> bool {
         matches!(
             (self.os, self.arch),
-            (HostOs::Windows, Arch::X86_64) | (HostOs::MacOs, Arch::Aarch64) | (HostOs::MacOs, Arch::X86_64)
+            (HostOs::Windows, Arch::X86_64)
+                | (HostOs::MacOs, Arch::Aarch64)
+                | (HostOs::MacOs, Arch::X86_64)
         )
     }
 }
@@ -124,9 +126,15 @@ pub async fn inspect() -> HostInfo {
 
     let os = current_os();
     let os_name = System::name().unwrap_or_else(|| "Unknown".into());
-    let os_version = System::os_version().or_else(System::kernel_version).unwrap_or_default();
+    let os_version = System::os_version()
+        .or_else(System::kernel_version)
+        .unwrap_or_default();
     let (arch, translated) = real_arch().await;
-    let cpu_brand = sys.cpus().first().map(|c| c.brand().trim().to_string()).unwrap_or_default();
+    let cpu_brand = sys
+        .cpus()
+        .first()
+        .map(|c| c.brand().trim().to_string())
+        .unwrap_or_default();
     let logical_cpus = sys.cpus().len().max(1);
     let (virtualization, hypervisor_conflict, detail) = virtualization_status(os, arch).await;
     let hostname = System::host_name().unwrap_or_default();
@@ -255,14 +263,24 @@ fn windows_native_arch() -> (Arch, bool) {
     #[link(name = "kernel32")]
     extern "system" {
         fn GetCurrentProcess() -> isize;
-        fn IsWow64Process2(process: isize, process_machine: *mut u16, native_machine: *mut u16) -> i32;
+        fn IsWow64Process2(
+            process: isize,
+            process_machine: *mut u16,
+            native_machine: *mut u16,
+        ) -> i32;
     }
     const IMAGE_FILE_MACHINE_UNKNOWN: u16 = 0;
     const IMAGE_FILE_MACHINE_AMD64: u16 = 0x8664;
     const IMAGE_FILE_MACHINE_ARM64: u16 = 0xAA64;
     let mut process_machine: u16 = 0;
     let mut native_machine: u16 = 0;
-    let ok = unsafe { IsWow64Process2(GetCurrentProcess(), &mut process_machine, &mut native_machine) };
+    let ok = unsafe {
+        IsWow64Process2(
+            GetCurrentProcess(),
+            &mut process_machine,
+            &mut native_machine,
+        )
+    };
     if ok != 0 {
         let arch = match native_machine {
             IMAGE_FILE_MACHINE_AMD64 => Arch::X86_64,
@@ -291,7 +309,9 @@ async fn virtualization_status(os: HostOs, _arch: Arch) -> (Tri, Tri, Option<Str
         }
         HostOs::Windows => windows_virtualization().await,
         HostOs::Linux => {
-            let flags = tokio::fs::read_to_string("/proc/cpuinfo").await.unwrap_or_default();
+            let flags = tokio::fs::read_to_string("/proc/cpuinfo")
+                .await
+                .unwrap_or_default();
             let has = flags.contains(" vmx") || flags.contains(" svm");
             (Tri::from(Some(has)), Tri::Unknown, None)
         }
@@ -335,7 +355,10 @@ pub fn parse_windows_virt_json(json: &str) -> (Tri, Tri, Option<String>) {
     };
     let vt = v.get("vt").and_then(|x| x.as_bool());
     let vmm = v.get("vmm").and_then(|x| x.as_bool());
-    let hv_present = v.get("hvPresent").and_then(|x| x.as_bool()).unwrap_or(false);
+    let hv_present = v
+        .get("hvPresent")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
     let sec_running: Vec<u64> = v
         .get("secRunning")
         .and_then(|x| x.as_array())
@@ -345,7 +368,11 @@ pub fn parse_windows_virt_json(json: &str) -> (Tri, Tri, Option<String>) {
     let hv_services: Vec<String> = v
         .get("hvServices")
         .and_then(|x| x.as_array())
-        .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(String::from))
+                .collect()
+        })
         .unwrap_or_default();
 
     // Firmware VT can read false while a hypervisor owns the CPU; treat "hypervisor present"
@@ -370,12 +397,19 @@ pub fn parse_windows_virt_json(json: &str) -> (Tri, Tri, Option<String>) {
         details.push("Credential Guard is on".to_string());
     }
     if !hv_services.is_empty() {
-        details.push(format!("Hyper-V services running: {}", hv_services.join(", ")));
+        details.push(format!(
+            "Hyper-V services running: {}",
+            hv_services.join(", ")
+        ));
     }
     (
         virt,
         Tri::from(Some(conflict)),
-        if details.is_empty() { None } else { Some(details.join("; ")) },
+        if details.is_empty() {
+            None
+        } else {
+            Some(details.join("; "))
+        },
     )
 }
 

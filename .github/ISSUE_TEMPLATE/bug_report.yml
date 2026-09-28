@@ -1,0 +1,41 @@
+name: Bug report
+description: Something did not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. Please attach a support report from Dashboard › Support report (it is redacted; review it first).
+  - type: input
+    id: version
+    attributes:
+      label: App version and file you downloaded
+      placeholder: 0.1.0, VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg
+    validations:
+      required: true
+  - type: input
+    id: computer
+    attributes:
+      label: Computer (OS version, processor, memory)
+      placeholder: macOS 15.6, Apple M2 Pro, 24 GB
+    validations:
+      required: true
+  - type: input
+    id: vbox
+    attributes:
+      label: VirtualBox version and Windows build (if you got that far)
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: checkboxes
+    id: report
+    attributes:
+      label: Support report
+      options:
+        - label: I attached a redacted support report (or explained why not)

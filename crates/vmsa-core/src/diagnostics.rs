@@ -38,13 +38,24 @@ pub fn redact(text: &str) -> String {
     }
     // Public IPv4 addresses (keep RFC1918 / NAT 10.0.2.x which are useful for VM diagnosis).
     static IP: OnceLock<Regex> = OnceLock::new();
-    let ip = IP.get_or_init(|| Regex::new(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b").unwrap());
+    let ip =
+        IP.get_or_init(|| Regex::new(r"\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b").unwrap());
     out = ip
         .replace_all(&out, |c: &regex::Captures| {
             let a: u8 = c[1].parse().unwrap_or(0);
             let b: u8 = c[2].parse().unwrap_or(0);
-            let private = a == 10 || (a == 172 && (16..=31).contains(&b)) || (a == 192 && b == 168) || a == 127 || (a == 169 && b == 254) || a == 0 || a == 255;
-            if private { c[0].to_string() } else { "[PUBLIC-IP]".to_string() }
+            let private = a == 10
+                || (a == 172 && (16..=31).contains(&b))
+                || (a == 192 && b == 168)
+                || a == 127
+                || (a == 169 && b == 254)
+                || a == 0
+                || a == 255;
+            if private {
+                c[0].to_string()
+            } else {
+                "[PUBLIC-IP]".to_string()
+            }
         })
         .into_owned();
     out
@@ -53,10 +64,17 @@ pub fn redact(text: &str) -> String {
 /// Assemble a report with a fixed header. Every section body is redacted.
 pub fn build_report(app_version: &str, sections: &[ReportSection]) -> String {
     let mut s = String::new();
-    s.push_str(&format!("VM Setup Assistant support report\nApp version: {app_version}\nGenerated: {}\n", chrono::Utc::now().to_rfc3339()));
+    s.push_str(&format!(
+        "VM Setup Assistant support report\nApp version: {app_version}\nGenerated: {}\n",
+        chrono::Utc::now().to_rfc3339()
+    ));
     s.push_str("Redaction: passwords, tokens, product keys, e-mail addresses, user folder names, MAC addresses and public IP addresses are removed. Review before sharing.\n\n");
     for sec in sections {
-        s.push_str(&format!("===== {} =====\n{}\n\n", sec.title, redact(&sec.body)));
+        s.push_str(&format!(
+            "===== {} =====\n{}\n\n",
+            sec.title,
+            redact(&sec.body)
+        ));
     }
     s
 }
@@ -86,7 +104,13 @@ mod tests {
 
     #[test]
     fn report_has_header_and_sections() {
-        let r = build_report("0.1.0", &[ReportSection { title: "Host".into(), body: "user /Users/dan".into() }]);
+        let r = build_report(
+            "0.1.0",
+            &[ReportSection {
+                title: "Host".into(),
+                body: "user /Users/dan".into(),
+            }],
+        );
         assert!(r.starts_with("VM Setup Assistant support report"));
         assert!(r.contains("===== Host ====="));
         assert!(r.contains("/Users/[USER]"));

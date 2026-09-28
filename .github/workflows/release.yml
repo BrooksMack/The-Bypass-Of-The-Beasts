@@ -1,0 +1,226 @@
+name: Release
+
+# Publishes a GitHub release with installers when a version tag (v1.2.3 or v1.2.3-preview.1) is
+# pushed. Signing and notarization run only when the corresponding secrets exist; otherwise the
+# artifacts are unsigned preview builds and the release notes say so.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify version and run tests
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/check-version.mjs "${{ github.ref }}"
+      - id: v
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if [[ "$V" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Install Tauri Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: npm run typecheck && npm test && npm run build
+      - run: cargo test --workspace
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: windows-x64
+            os: windows-2025
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+          - label: macos-apple-silicon
+            os: macos-15
+            target: aarch64-apple-darwin
+            bundles: dmg
+          - label: macos-intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # ---- macOS signing / notarization (optional) ----
+      - name: Configure Apple signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "Developer ID certificate provided: the app will be signed" \
+              "$( [ -n "$APPLE_ID" ] && echo 'and notarized' || echo '(no notarization credentials)' )."
+            {
+              echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+              echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+              echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+              echo "APPLE_ID=$APPLE_ID"
+              echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+              echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+              echo "SIGNED=true"
+            } >> "$GITHUB_ENV"
+          else
+            echo "No Apple signing secrets: producing an ad-hoc signed preview build."
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+          fi
+
+      # ---- Windows signing (optional) ----
+      - name: Configure Windows signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ($env:WINDOWS_CERTIFICATE) {
+            $pfx = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+            [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+            $pwd = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+            $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $pwd
+            Remove-Item $pfx
+            $cfg = '{"bundle":{"windows":{"certificateThumbprint":"' + $cert.Thumbprint + '","digestAlgorithm":"sha256","timestampUrl":"http://timestamp.digicert.com"}}}'
+            "TAURI_SIGN_CONFIG=$cfg" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "SIGNED=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "Code-signing certificate imported; installer will be signed."
+          } else {
+            "SIGNED=false" | Out-File -FilePath $env:GITHUB_ENV -Append
+            Write-Host "No Windows signing secrets: producing an unsigned preview build."
+          }
+
+      - name: Build installer
+        shell: bash
+        run: |
+          if [ -n "${TAURI_SIGN_CONFIG:-}" ]; then
+            npm run tauri -- build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}" --config "$TAURI_SIGN_CONFIG"
+          else
+            npm run tauri -- build --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+          fi
+
+      - name: Collect and rename artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          B="target/${{ matrix.target }}/release/bundle"
+          case "${{ matrix.label }}" in
+            windows-x64)
+              src=$(ls "$B"/nsis/*.exe | head -n1)
+              dst="out/VM-Setup-Assistant-${VERSION}-windows-x64-setup.exe" ;;
+            macos-apple-silicon)
+              src=$(ls "$B"/dmg/*.dmg | head -n1)
+              dst="out/VM-Setup-Assistant-${VERSION}-macos-apple-silicon.dmg" ;;
+            macos-intel)
+              src=$(ls "$B"/dmg/*.dmg | head -n1)
+              dst="out/VM-Setup-Assistant-${VERSION}-macos-intel.dmg" ;;
+          esac
+          cp "$src" "$dst"
+          echo "signed=${SIGNED}" > "out/${{ matrix.label }}.signing.txt"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: out/*
+          if-no-files-found: error
+
+  sbom:
+    name: Dependency inventory (SBOM)
+    needs: verify
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: VM-Setup-Assistant-${{ needs.verify.outputs.version }}-sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: VM-Setup-Assistant-*-sbom.spdx.json
+
+  publish:
+    name: Publish GitHub release
+    needs: [verify, build, sbom]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Assemble release files and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f \( -name '*.exe' -o -name '*.dmg' -o -name '*.spdx.json' \) -exec cp {} release/ \;
+          cd release
+          sha256sum * > "VM-Setup-Assistant-${VERSION}-SHA256SUMS.txt"
+          cat "VM-Setup-Assistant-${VERSION}-SHA256SUMS.txt"
+          cd ..
+          {
+            echo "## Build provenance"
+            echo
+            for f in artifacts/*/*.signing.txt; do
+              plat=$(basename "$f" .signing.txt); s=$(cut -d= -f2 "$f")
+              if [ "$s" = "true" ]; then echo "- $plat: code-signed"; else echo "- $plat: **unsigned preview build** (no signing credentials were configured)"; fi
+            done
+            echo
+            echo "SHA-256 checksums: \`VM-Setup-Assistant-${VERSION}-SHA256SUMS.txt\`. Dependency inventory: \`*-sbom.spdx.json\`."
+          } > provenance.md
+          node scripts/release-notes.mjs "$VERSION" provenance.md > notes.md
+          cat notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: VM Setup Assistant ${{ env.VERSION }}
+          body_path: notes.md
+          prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
+          draft: false
+          files: release/*
+          fail_on_unmatched_files: true

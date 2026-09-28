@@ -38,7 +38,9 @@ pub fn parse_machine_readable(text: &str) -> BTreeMap<String, String> {
     let mut map = BTreeMap::new();
     for line in text.lines() {
         let line = line.trim_end_matches('\r');
-        let Some((k, v)) = split_kv(line) else { continue };
+        let Some((k, v)) = split_kv(line) else {
+            continue;
+        };
         map.insert(k, v);
     }
     map
@@ -54,7 +56,10 @@ fn split_kv(line: &str) -> Option<(String, String)> {
         let i = line.find('=')?;
         (&line[..i], &line[i + 1..])
     };
-    let value = rest.strip_prefix('"').and_then(|r| r.strip_suffix('"')).unwrap_or(rest);
+    let value = rest
+        .strip_prefix('"')
+        .and_then(|r| r.strip_suffix('"'))
+        .unwrap_or(rest);
     Some((key.to_string(), value.to_string()))
 }
 
@@ -89,7 +94,15 @@ impl VmState {
         }
     }
     pub fn is_live(&self) -> bool {
-        matches!(self, VmState::Running | VmState::Paused | VmState::Starting | VmState::Stopping | VmState::Saving | VmState::Restoring)
+        matches!(
+            self,
+            VmState::Running
+                | VmState::Paused
+                | VmState::Starting
+                | VmState::Stopping
+                | VmState::Saving
+                | VmState::Restoring
+        )
     }
 }
 
@@ -131,8 +144,14 @@ pub struct VmInfo {
 
 pub fn parse_vm_info(text: &str) -> Result<VmInfo> {
     let m = parse_machine_readable(text);
-    let name = m.get("name").cloned().ok_or_else(|| CoreError::Parse("showvminfo output has no name".into()))?;
-    let uuid = m.get("UUID").cloned().ok_or_else(|| CoreError::Parse("showvminfo output has no UUID".into()))?;
+    let name = m
+        .get("name")
+        .cloned()
+        .ok_or_else(|| CoreError::Parse("showvminfo output has no name".into()))?;
+    let uuid = m
+        .get("UUID")
+        .cloned()
+        .ok_or_else(|| CoreError::Parse("showvminfo output has no UUID".into()))?;
     let state_raw = m.get("VMState").cloned().unwrap_or_default();
     let get = |k: &str| m.get(k).cloned();
     let num = |k: &str| m.get(k).and_then(|v| v.parse::<u32>().ok());
@@ -189,7 +208,10 @@ pub fn parse_vm_info(text: &str) -> Result<VmInfo> {
 /// `VBoxManage --version` prints e.g. `7.2.20r175154`.
 pub fn parse_version(text: &str) -> Option<crate::profile::VboxVersion> {
     // Warnings (e.g. about kernel modules) may precede the version; take the last plausible line.
-    text.lines().rev().map(str::trim).find_map(crate::profile::VboxVersion::parse)
+    text.lines()
+        .rev()
+        .map(str::trim)
+        .find_map(crate::profile::VboxVersion::parse)
 }
 
 /// `VBoxManage createvm` prints `UUID: <uuid>` and `Settings file: '<path>'`.
@@ -211,8 +233,12 @@ pub fn parse_guest_properties(text: &str) -> BTreeMap<String, String> {
     let mut map = BTreeMap::new();
     for line in text.lines() {
         let line = line.trim();
-        let Some(rest) = line.strip_prefix("Name:") else { continue };
-        let Some((name, rest)) = rest.split_once(", value:") else { continue };
+        let Some(rest) = line.strip_prefix("Name:") else {
+            continue;
+        };
+        let Some((name, rest)) = rest.split_once(", value:") else {
+            continue;
+        };
         let value = match rest.find(", timestamp:") {
             Some(i) => &rest[..i],
             None => rest.split(", flags:").next().unwrap_or(rest),
@@ -224,7 +250,11 @@ pub fn parse_guest_properties(text: &str) -> BTreeMap<String, String> {
 
 /// `VBoxManage guestproperty get VM key` prints `Value: X` or `No value set!`.
 pub fn parse_guest_property_get(text: &str) -> Option<String> {
-    text.lines().find_map(|l| l.trim().strip_prefix("Value:").map(|v| v.trim().to_string()))
+    text.lines().find_map(|l| {
+        l.trim()
+            .strip_prefix("Value:")
+            .map(|v| v.trim().to_string())
+    })
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -241,15 +271,23 @@ pub struct HostInfoOutput {
 pub fn parse_hostinfo(text: &str) -> HostInfoOutput {
     let mut out = HostInfoOutput::default();
     for line in text.lines() {
-        let Some((k, v)) = line.split_once(':') else { continue };
+        let Some((k, v)) = line.split_once(':') else {
+            continue;
+        };
         let k = k.trim();
         let v = v.trim();
-        let first_num = || v.split_whitespace().next().and_then(|n| n.parse::<u64>().ok());
+        let first_num = || {
+            v.split_whitespace()
+                .next()
+                .and_then(|n| n.parse::<u64>().ok())
+        };
         match k {
             "Processor online count" => out.processor_online_count = first_num().map(|n| n as u32),
             "Memory size" => out.memory_size_mb = first_num(),
             "Memory available" => out.memory_available_mb = first_num(),
-            "Processor supports HW virtualization" => out.supports_hw_virt = Some(v.eq_ignore_ascii_case("yes")),
+            "Processor supports HW virtualization" => {
+                out.supports_hw_virt = Some(v.eq_ignore_ascii_case("yes"))
+            }
             "Operating system" => out.os = Some(v.to_string()),
             "Operating system version" => out.os_version = Some(v.to_string()),
             _ => {}
@@ -260,7 +298,10 @@ pub fn parse_hostinfo(text: &str) -> HostInfoOutput {
 
 /// `VBoxManage list systemproperties` → default machine folder.
 pub fn parse_default_machine_folder(text: &str) -> Option<String> {
-    text.lines().find_map(|l| l.strip_prefix("Default machine folder:").map(|v| v.trim().to_string()))
+    text.lines().find_map(|l| {
+        l.strip_prefix("Default machine folder:")
+            .map(|v| v.trim().to_string())
+    })
 }
 
 /// `VBoxManage getextradata VM key` prints `Value: X` or `No value set!`.
@@ -272,10 +313,14 @@ pub fn parse_extradata_get(text: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    const FIXTURE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/vboxmanage");
+    const FIXTURE_DIR: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tests/fixtures/vboxmanage"
+    );
 
     fn fixture(name: &str) -> String {
-        std::fs::read_to_string(format!("{FIXTURE_DIR}/{name}")).unwrap_or_else(|e| panic!("fixture {name}: {e}"))
+        std::fs::read_to_string(format!("{FIXTURE_DIR}/{name}"))
+            .unwrap_or_else(|e| panic!("fixture {name}: {e}"))
     }
 
     #[test]
@@ -318,15 +363,23 @@ mod tests {
         assert_eq!(info.firmware.as_deref(), Some("EFI"));
         assert_eq!(info.tpm_type.as_deref(), Some("2.0"));
         assert_eq!(info.nic1_type.as_deref(), Some("82540EM"));
-        assert_eq!(info.guest_additions_version.as_deref(), Some("7.2.20 r175154"));
+        assert_eq!(
+            info.guest_additions_version.as_deref(),
+            Some("7.2.20 r175154")
+        );
         assert_eq!(info.guest_additions_run_level, Some(3));
     }
 
     #[test]
     fn version_lines() {
-        assert_eq!(parse_version("7.2.20r175154\n").unwrap().to_string(), "7.2.20r175154");
         assert_eq!(
-            parse_version("WARNING: The vboxdrv kernel module is not loaded.\n7.0.14r161095\n").unwrap().patch,
+            parse_version("7.2.20r175154\n").unwrap().to_string(),
+            "7.2.20r175154"
+        );
+        assert_eq!(
+            parse_version("WARNING: The vboxdrv kernel module is not loaded.\n7.0.14r161095\n")
+                .unwrap()
+                .patch,
             14
         );
         assert!(parse_version("").is_none());
@@ -342,10 +395,24 @@ mod tests {
     #[test]
     fn guest_properties() {
         let m = parse_guest_properties(&fixture("guestproperty_enumerate.txt"));
-        assert_eq!(m.get("/VirtualBox/GuestInfo/Net/0/V4/IP").map(String::as_str), Some("10.0.2.15"));
-        assert_eq!(m.get("/VirtualBox/GuestInfo/Net/0/Status").map(String::as_str), Some("Up"));
-        assert_eq!(m.get("/VirtualBox/GuestAdd/Version").map(String::as_str), Some("7.2.20"));
-        assert_eq!(parse_guest_property_get("Value: 7.2.20\n").as_deref(), Some("7.2.20"));
+        assert_eq!(
+            m.get("/VirtualBox/GuestInfo/Net/0/V4/IP")
+                .map(String::as_str),
+            Some("10.0.2.15")
+        );
+        assert_eq!(
+            m.get("/VirtualBox/GuestInfo/Net/0/Status")
+                .map(String::as_str),
+            Some("Up")
+        );
+        assert_eq!(
+            m.get("/VirtualBox/GuestAdd/Version").map(String::as_str),
+            Some("7.2.20")
+        );
+        assert_eq!(
+            parse_guest_property_get("Value: 7.2.20\n").as_deref(),
+            Some("7.2.20")
+        );
         assert!(parse_guest_property_get("No value set!\n").is_none());
     }
 
@@ -366,7 +433,9 @@ mod tests {
 
     #[test]
     fn machine_readable_edge_cases() {
-        let m = parse_machine_readable("name=\"a=b\"\n\"SATA-0-0\"=\"C:\\x y\\d.vdi\"\nbare=value\n\nnovalue\n");
+        let m = parse_machine_readable(
+            "name=\"a=b\"\n\"SATA-0-0\"=\"C:\\x y\\d.vdi\"\nbare=value\n\nnovalue\n",
+        );
         assert_eq!(m["name"], "a=b");
         assert_eq!(m["SATA-0-0"], "C:\\x y\\d.vdi");
         assert_eq!(m["bare"], "value");

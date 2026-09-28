@@ -59,9 +59,17 @@ impl AppPaths {
 /// Used to warn (not block) when a user picks such a location for a 100 GB disk.
 pub fn looks_cloud_synced(path: &std::path::Path) -> bool {
     let s = path.to_string_lossy().to_ascii_lowercase();
-    ["onedrive", "icloud", "dropbox", "google drive", "googledrive", "mobile documents", "box sync"]
-        .iter()
-        .any(|k| s.contains(k))
+    [
+        "onedrive",
+        "icloud",
+        "dropbox",
+        "google drive",
+        "googledrive",
+        "mobile documents",
+        "box sync",
+    ]
+    .iter()
+    .any(|k| s.contains(k))
 }
 
 #[cfg(test)]
@@ -70,10 +78,14 @@ mod tests {
 
     #[test]
     fn cloud_heuristic() {
-        assert!(looks_cloud_synced(std::path::Path::new("C:\\Users\\a\\OneDrive\\VMs")));
+        assert!(looks_cloud_synced(std::path::Path::new(
+            "C:\\Users\\a\\OneDrive\\VMs"
+        )));
         assert!(looks_cloud_synced(std::path::Path::new(
             "/Users/a/Library/Mobile Documents/com~apple~CloudDocs"
         )));
-        assert!(!looks_cloud_synced(std::path::Path::new("/Users/a/VirtualBox VMs")));
+        assert!(!looks_cloud_synced(std::path::Path::new(
+            "/Users/a/VirtualBox VMs"
+        )));
     }
 }

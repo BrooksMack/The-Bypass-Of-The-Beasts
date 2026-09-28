@@ -54,9 +54,16 @@ pub enum RepairAction {
     /// Toggle the virtual cable off/on to force the guest to renew its lease.
     ReconnectCable,
     /// Switch the emulated adapter (recorded so the original can be restored).
-    SwitchNicType { from: Option<String>, to: String, requires_guest_driver: bool },
+    SwitchNicType {
+        from: Option<String>,
+        to: String,
+        requires_guest_driver: bool,
+    },
     /// Guest-side step the user performs (plain language).
-    GuestManual { title: String, steps: Vec<String> },
+    GuestManual {
+        title: String,
+        steps: Vec<String>,
+    },
     ConfirmInGuest,
     None,
 }
@@ -104,14 +111,22 @@ pub fn diagnose(f: &NetworkFacts, guest: GuestArch) -> Diagnosis {
     let code10 = f
         .user_reported_device_error
         .as_deref()
-        .map(|e| e.to_ascii_lowercase().contains("code 10") || e.to_ascii_lowercase().contains("cannot start"))
+        .map(|e| {
+            e.to_ascii_lowercase().contains("code 10")
+                || e.to_ascii_lowercase().contains("cannot start")
+        })
         .unwrap_or(false);
 
     if f.guest_adapter_count == Some(0) || code10 {
         // Arm VMs default to the USB NCM adapter (Microsoft's UsbNcm driver). When that driver fails
         // after updates, the documented recovery is the Microsoft-signed ARM64 virtio-win NetKVM
         // driver plus switching the adapter to virtio-net. The original type is recorded for restore.
-        if guest == GuestArch::Arm64 && f.nic_type.as_deref().map(|t| t.eq_ignore_ascii_case("usbnet")).unwrap_or(false) {
+        if guest == GuestArch::Arm64
+            && f.nic_type
+                .as_deref()
+                .map(|t| t.eq_ignore_ascii_case("usbnet"))
+                .unwrap_or(false)
+        {
             return Diagnosis {
                 problem: if code10 { NetworkProblem::DriverFailed } else { NetworkProblem::AdapterMissingInGuest },
                 summary: if code10 {
@@ -152,7 +167,11 @@ pub fn diagnose(f: &NetworkFacts, guest: GuestArch) -> Diagnosis {
         };
     }
 
-    if f.guest_adapter_status.as_deref().map(|s| !s.eq_ignore_ascii_case("up")).unwrap_or(false) {
+    if f.guest_adapter_status
+        .as_deref()
+        .map(|s| !s.eq_ignore_ascii_case("up"))
+        .unwrap_or(false)
+    {
         return Diagnosis {
             problem: NetworkProblem::LinkDown,
             summary: "The network adapter in Windows reports the link is down.".into(),
@@ -236,9 +255,15 @@ mod tests {
     fn healthy_requires_confirmation() {
         let mut f = base();
         f.user_confirmed_internet = Some(true);
-        assert_eq!(diagnose(&f, GuestArch::Arm64).problem, NetworkProblem::Healthy);
+        assert_eq!(
+            diagnose(&f, GuestArch::Arm64).problem,
+            NetworkProblem::Healthy
+        );
         f.user_confirmed_internet = Some(false);
-        assert_eq!(diagnose(&f, GuestArch::Arm64).problem, NetworkProblem::InternetUnavailable);
+        assert_eq!(
+            diagnose(&f, GuestArch::Arm64).problem,
+            NetworkProblem::InternetUnavailable
+        );
     }
 
     #[test]
@@ -261,31 +286,55 @@ mod tests {
         f.guest_adapter_count = Some(0);
         let d = diagnose(&f, GuestArch::X64);
         assert_eq!(d.problem, NetworkProblem::AdapterMissingInGuest);
-        assert!(!d.actions.iter().any(|a| matches!(a, RepairAction::SwitchNicType { .. })));
+        assert!(!d
+            .actions
+            .iter()
+            .any(|a| matches!(a, RepairAction::SwitchNicType { .. })));
     }
 
     #[test]
     fn ordering_of_checks() {
         let mut f = base();
         f.vm_running = false;
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::VmNotRunning);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::VmNotRunning
+        );
         let mut f = base();
         f.nic_attachment = Some("none".into());
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::NoVirtualAdapter);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::NoVirtualAdapter
+        );
         let mut f = base();
         f.cable_connected = Some(false);
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::CableDisconnected);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::CableDisconnected
+        );
         let mut f = base();
         f.guest_additions_active = false;
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::NoGuestAdditions);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::NoGuestAdditions
+        );
         let mut f = base();
         f.guest_adapter_status = Some("Down".into());
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::LinkDown);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::LinkDown
+        );
         let mut f = base();
         f.guest_ipv4 = Some("169.254.10.2".into());
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::NoDhcpAddress);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::NoDhcpAddress
+        );
         let mut f = base();
         f.guest_ipv4 = None;
-        assert_eq!(diagnose(&f, GuestArch::X64).problem, NetworkProblem::NoDhcpAddress);
+        assert_eq!(
+            diagnose(&f, GuestArch::X64).problem,
+            NetworkProblem::NoDhcpAddress
+        );
     }
 }

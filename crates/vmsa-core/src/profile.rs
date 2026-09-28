@@ -175,10 +175,12 @@ pub fn resource_limits(host: &HostInfo) -> ResourceLimits {
     let total = host.total_ram_bytes;
     let usable = total.saturating_sub(host_ram_reserve_bytes(total));
     let max_ram_mb = ((usable / MIB) / 512 * 512) as u32; // round down to 512 MiB
-    let recommended_ram_mb = RECOMMENDED_RAM_MB.min(max_ram_mb).max(0);
+    let recommended_ram_mb = RECOMMENDED_RAM_MB.min(max_ram_mb);
     let cpus = host.logical_cpus as u32;
     let max_cpus = cpus.saturating_sub(1).max(1);
-    let recommended_cpus = RECOMMENDED_CPUS.min((cpus / 2).max(WIN11_MIN_CPUS)).min(max_cpus);
+    let recommended_cpus = RECOMMENDED_CPUS
+        .min((cpus / 2).max(WIN11_MIN_CPUS))
+        .min(max_cpus);
     ResourceLimits {
         min_ram_mb: WIN11_MIN_RAM_MB,
         max_ram_mb,
@@ -202,7 +204,10 @@ pub struct VmSizing {
 pub fn validate_sizing(s: &VmSizing, limits: &ResourceLimits) -> Vec<String> {
     let mut problems = Vec::new();
     if s.ram_mb < limits.min_ram_mb {
-        problems.push(format!("Windows 11 needs at least {} MB of memory.", limits.min_ram_mb));
+        problems.push(format!(
+            "Windows 11 needs at least {} MB of memory.",
+            limits.min_ram_mb
+        ));
     }
     if s.ram_mb > limits.max_ram_mb {
         problems.push(format!(
@@ -211,16 +216,28 @@ pub fn validate_sizing(s: &VmSizing, limits: &ResourceLimits) -> Vec<String> {
         ));
     }
     if s.cpus < limits.min_cpus {
-        problems.push(format!("Windows 11 needs at least {} processors.", limits.min_cpus));
+        problems.push(format!(
+            "Windows 11 needs at least {} processors.",
+            limits.min_cpus
+        ));
     }
     if s.cpus > limits.max_cpus {
-        problems.push(format!("Leave at least one processor for this computer (maximum {}).", limits.max_cpus));
+        problems.push(format!(
+            "Leave at least one processor for this computer (maximum {}).",
+            limits.max_cpus
+        ));
     }
     if s.disk_gb < limits.min_disk_gb {
-        problems.push(format!("Windows 11 needs a disk of at least {} GB.", limits.min_disk_gb));
+        problems.push(format!(
+            "Windows 11 needs a disk of at least {} GB.",
+            limits.min_disk_gb
+        ));
     }
     if s.disk_gb > limits.max_disk_gb {
-        problems.push(format!("The virtual disk cannot be larger than {} GB.", limits.max_disk_gb));
+        problems.push(format!(
+            "The virtual disk cannot be larger than {} GB.",
+            limits.max_disk_gb
+        ));
     }
     problems
 }
@@ -245,8 +262,10 @@ pub fn storage_estimate(guest: GuestArch, iso_already_present: bool) -> StorageE
     };
     let initial_windows_install_bytes = 30 * GIB;
     let working_space_bytes = 8 * GIB;
-    let total_bytes =
-        windows_iso_bytes + virtualbox_installer_bytes + initial_windows_install_bytes + working_space_bytes;
+    let total_bytes = windows_iso_bytes
+        + virtualbox_installer_bytes
+        + initial_windows_install_bytes
+        + working_space_bytes;
     StorageEstimate {
         windows_iso_bytes,
         virtualbox_installer_bytes,
@@ -276,7 +295,13 @@ pub struct Finding {
 }
 
 impl Finding {
-    fn new(code: &str, severity: Severity, title: &str, detail: String, action: Option<&str>) -> Self {
+    fn new(
+        code: &str,
+        severity: Severity,
+        title: &str,
+        detail: String,
+        action: Option<&str>,
+    ) -> Self {
         Finding {
             code: code.into(),
             severity,
@@ -297,7 +322,9 @@ pub struct Assessment {
 
 impl Assessment {
     pub fn has_blockers(&self) -> bool {
-        self.findings.iter().any(|f| f.severity == Severity::Blocker)
+        self.findings
+            .iter()
+            .any(|f| f.severity == Severity::Blocker)
     }
 }
 
@@ -366,7 +393,11 @@ pub fn assess(host: &HostInfo, free_at_vm_base: Option<u64>, iso_present: bool) 
         ));
     }
 
-    let limits = if level != SupportLevel::Unsupported { Some(resource_limits(host)) } else { None };
+    let limits = if level != SupportLevel::Unsupported {
+        Some(resource_limits(host))
+    } else {
+        None
+    };
     if let Some(l) = &limits {
         if l.max_ram_mb < WIN11_MIN_RAM_MB {
             findings.push(Finding::new(
@@ -405,7 +436,10 @@ pub fn assess(host: &HostInfo, free_at_vm_base: Option<u64>, iso_present: bool) 
                 "cpus_tight",
                 Severity::Warning,
                 "Few processor cores",
-                format!("Windows will get {} processors out of {}. It will work but may feel slow.", l.recommended_cpus, host.logical_cpus),
+                format!(
+                    "Windows will get {} processors out of {}. It will work but may feel slow.",
+                    l.recommended_cpus, host.logical_cpus
+                ),
                 None,
             ));
         }
@@ -463,7 +497,12 @@ impl VboxVersion {
         let major = it.next()?.ok()?;
         let minor = it.next()?.ok()?;
         let patch = it.next().unwrap_or(Ok(0)).ok()?;
-        Some(Self { major, minor, patch, build })
+        Some(Self {
+            major,
+            minor,
+            patch,
+            build,
+        })
     }
     pub fn at_least(&self, other: &str) -> bool {
         match Self::parse(other) {
@@ -557,17 +596,29 @@ mod tests {
 
     #[test]
     fn unsupported_combinations() {
-        let a = assess(&host(HostOs::Windows, Arch::Aarch64, 16, 8), Some(500 * GIB), false);
+        let a = assess(
+            &host(HostOs::Windows, Arch::Aarch64, 16, 8),
+            Some(500 * GIB),
+            false,
+        );
         assert_eq!(a.support_level, SupportLevel::Experimental);
         assert!(a.has_blockers());
-        let a = assess(&host(HostOs::Linux, Arch::X86_64, 16, 8), Some(500 * GIB), false);
+        let a = assess(
+            &host(HostOs::Linux, Arch::X86_64, 16, 8),
+            Some(500 * GIB),
+            false,
+        );
         assert_eq!(a.support_level, SupportLevel::Unsupported);
         assert!(a.has_blockers());
     }
 
     #[test]
     fn disk_blocker_reports_amounts() {
-        let a = assess(&host(HostOs::MacOs, Arch::Aarch64, 16, 8), Some(20 * GIB), false);
+        let a = assess(
+            &host(HostOs::MacOs, Arch::Aarch64, 16, 8),
+            Some(20 * GIB),
+            false,
+        );
         let f = a.findings.iter().find(|f| f.code == "disk_space").unwrap();
         assert_eq!(f.severity, Severity::Blocker);
         assert!(f.detail.contains("20.0 GB is free"));
@@ -584,25 +635,68 @@ mod tests {
         h.virtualization = Tri::No;
         h.hypervisor_conflict = Tri::Yes;
         let a = assess(&h, Some(500 * GIB), false);
-        let v = a.findings.iter().find(|f| f.code == "virtualization_off").unwrap();
+        let v = a
+            .findings
+            .iter()
+            .find(|f| f.code == "virtualization_off")
+            .unwrap();
         assert_eq!(v.severity, Severity::Blocker);
-        let c = a.findings.iter().find(|f| f.code == "hypervisor_present").unwrap();
+        let c = a
+            .findings
+            .iter()
+            .find(|f| f.code == "hypervisor_present")
+            .unwrap();
         assert_eq!(c.severity, Severity::Warning);
     }
 
     #[test]
     fn sizing_validation() {
         let l = resource_limits(&host(HostOs::MacOs, Arch::Aarch64, 16, 8));
-        assert!(validate_sizing(&VmSizing { ram_mb: 8192, cpus: 4, disk_gb: 100 }, &l).is_empty());
-        assert!(!validate_sizing(&VmSizing { ram_mb: 2048, cpus: 4, disk_gb: 100 }, &l).is_empty());
-        assert!(!validate_sizing(&VmSizing { ram_mb: 8192, cpus: 8, disk_gb: 100 }, &l).is_empty());
-        assert!(!validate_sizing(&VmSizing { ram_mb: 8192, cpus: 4, disk_gb: 20 }, &l).is_empty());
+        assert!(validate_sizing(
+            &VmSizing {
+                ram_mb: 8192,
+                cpus: 4,
+                disk_gb: 100
+            },
+            &l
+        )
+        .is_empty());
+        assert!(!validate_sizing(
+            &VmSizing {
+                ram_mb: 2048,
+                cpus: 4,
+                disk_gb: 100
+            },
+            &l
+        )
+        .is_empty());
+        assert!(!validate_sizing(
+            &VmSizing {
+                ram_mb: 8192,
+                cpus: 8,
+                disk_gb: 100
+            },
+            &l
+        )
+        .is_empty());
+        assert!(!validate_sizing(
+            &VmSizing {
+                ram_mb: 8192,
+                cpus: 4,
+                disk_gb: 20
+            },
+            &l
+        )
+        .is_empty());
     }
 
     #[test]
     fn version_parse() {
         let v = VboxVersion::parse("7.2.20r175154").unwrap();
-        assert_eq!((v.major, v.minor, v.patch, v.build), (7, 2, 20, Some(175154)));
+        assert_eq!(
+            (v.major, v.minor, v.patch, v.build),
+            (7, 2, 20, Some(175154))
+        );
         assert!(v.at_least("7.2.0"));
         assert!(!v.at_least("7.3.0"));
         assert_eq!(VboxVersion::parse("7.1.4_BETA1r162349").unwrap().patch, 4);

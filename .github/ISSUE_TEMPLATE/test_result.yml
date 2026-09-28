@@ -1,0 +1,29 @@
+name: Test result
+description: Report a manual test on real hardware (helps fill the compatibility matrix)
+labels: [test-result]
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Host (OS version, processor) and app version
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: VirtualBox version and Windows build installed
+  - type: dropdown
+    id: howfar
+    attributes:
+      label: How far did it get?
+      options:
+        - App launches
+        - Host checks and dependency detection correct
+        - VM created and booted Windows Setup
+        - Windows installed, Guest Additions running, web page loads
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes (which checklist items passed or failed)

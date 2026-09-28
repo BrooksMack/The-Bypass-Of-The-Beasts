@@ -100,20 +100,15 @@ pub struct VmRecord {
     pub completed_steps: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Verified {
     /// Confirmed by observation (guest properties, VM state) or explicit user confirmation.
     Yes,
     No,
     /// Not checked yet or cannot be observed from outside the guest.
+    #[default]
     Pending,
-}
-
-impl Default for Verified {
-    fn default() -> Self {
-        Verified::Pending
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -184,7 +179,11 @@ impl SetupState {
     pub fn note(&mut self, message: impl Into<String>) {
         let msg = message.into();
         tracing::info!(stage = ?self.stage, "{msg}");
-        self.history.push(EventRecord { at: Utc::now(), stage: self.stage, message: msg });
+        self.history.push(EventRecord {
+            at: Utc::now(),
+            stage: self.stage,
+            message: msg,
+        });
         if self.history.len() > 500 {
             let drop = self.history.len() - 500;
             self.history.drain(..drop);
@@ -200,7 +199,11 @@ impl SetupState {
     }
 
     pub fn record_error(&mut self, err: &CoreError) {
-        self.last_error = Some(LastError { at: Utc::now(), stage: self.stage, error: err.clone() });
+        self.last_error = Some(LastError {
+            at: Utc::now(),
+            stage: self.stage,
+            error: err.clone(),
+        });
         self.note(format!("error: {err}"));
     }
 
@@ -224,7 +227,11 @@ impl SetupState {
     pub fn resume_stage(&self) -> Stage {
         if self.vm.is_some() {
             if self.guest.windows_installed == Verified::Yes {
-                return if self.stage >= Stage::Dashboard { Stage::Dashboard } else { Stage::FinishAndVerify.max(self.stage) };
+                return if self.stage >= Stage::Dashboard {
+                    Stage::Dashboard
+                } else {
+                    Stage::FinishAndVerify.max(self.stage)
+                };
             }
             return Stage::InstallWindows;
         }
@@ -239,8 +246,11 @@ impl SetupState {
     pub fn load(path: &Path) -> Result<Option<SetupState>> {
         match std::fs::read(path) {
             Ok(bytes) => {
-                let st: SetupState = serde_json::from_slice(&bytes)
-                    .map_err(|e| CoreError::Parse(format!("setup state file is unreadable ({e}); it was backed up")))?;
+                let st: SetupState = serde_json::from_slice(&bytes).map_err(|e| {
+                    CoreError::Parse(format!(
+                        "setup state file is unreadable ({e}); it was backed up"
+                    ))
+                })?;
                 if st.schema_version > SCHEMA_VERSION {
                     return Err(CoreError::Parse(format!(
                         "setup state was written by a newer app version (schema {})",
@@ -256,9 +266,15 @@ impl SetupState {
 
     /// Atomic save: write to a temp file in the same directory, then rename over the target.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let dir = path.parent().ok_or_else(|| CoreError::InvalidInput("state path has no parent".into()))?;
+        let dir = path
+            .parent()
+            .ok_or_else(|| CoreError::InvalidInput("state path has no parent".into()))?;
         std::fs::create_dir_all(dir).map_err(|e| CoreError::io(dir, e))?;
-        let tmp = dir.join(format!(".{}.tmp-{}", path.file_name().and_then(|s| s.to_str()).unwrap_or("state"), std::process::id()));
+        let tmp = dir.join(format!(
+            ".{}.tmp-{}",
+            path.file_name().and_then(|s| s.to_str()).unwrap_or("state"),
+            std::process::id()
+        ));
         let json = serde_json::to_vec_pretty(self)?;
         std::fs::write(&tmp, &json).map_err(|e| CoreError::io(&tmp, e))?;
         std::fs::rename(&tmp, path).map_err(|e| {
@@ -274,9 +290,15 @@ impl SetupState {
             Ok(Some(s)) => (s, None),
             Ok(None) => (Self::new(app_version), None),
             Err(e) => {
-                let backup = path.with_extension(format!("corrupt-{}.json", Utc::now().format("%Y%m%d%H%M%S")));
+                let backup = path.with_extension(format!(
+                    "corrupt-{}.json",
+                    Utc::now().format("%Y%m%d%H%M%S")
+                ));
                 let _ = std::fs::rename(path, &backup);
-                (Self::new(app_version), Some(format!("{e}. Backup: {}", backup.display())))
+                (
+                    Self::new(app_version),
+                    Some(format!("{e}. Backup: {}", backup.display())),
+                )
             }
         }
     }
@@ -303,7 +325,9 @@ impl InstanceLock {
             std::fs::create_dir_all(dir).map_err(|e| CoreError::io(dir, e))?;
         }
         std::fs::write(path, std::process::id().to_string()).map_err(|e| CoreError::io(path, e))?;
-        Ok(InstanceLock { path: path.to_path_buf() })
+        Ok(InstanceLock {
+            path: path.to_path_buf(),
+        })
     }
 }
 
@@ -316,7 +340,11 @@ impl Drop for InstanceLock {
 fn process_alive(pid: u32) -> bool {
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
     let mut s = System::new();
-    s.refresh_processes_specifics(ProcessesToUpdate::Some(&[Pid::from_u32(pid)]), true, ProcessRefreshKind::nothing());
+    s.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
+        true,
+        ProcessRefreshKind::nothing(),
+    );
     s.process(Pid::from_u32(pid)).is_some()
 }
 
@@ -329,7 +357,11 @@ mod tests {
             guest_arch: GuestArch::Arm64,
             vm_name: "Windows 11".into(),
             base_folder: PathBuf::from("/Users/x/VirtualBox VMs"),
-            sizing: VmSizing { ram_mb: 8192, cpus: 4, disk_gb: 100 },
+            sizing: VmSizing {
+                ram_mb: 8192,
+                cpus: 4,
+                disk_gb: 100,
+            },
             iso_path: Some(PathBuf::from("/Users/x/Downloads/Win11.iso")),
             iso_source: Some(IsoSource::MicrosoftDownloadPage),
             iso_volume_id: Some("CCCOMA_A64FRE_EN-US_DV9".into()),
@@ -360,7 +392,11 @@ mod tests {
         assert_eq!(s.stage, Stage::Welcome);
         assert!(warning.unwrap().contains("Backup"));
         assert!(!p.exists());
-        assert!(std::fs::read_dir(dir.path()).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().contains("corrupt")));
+        assert!(std::fs::read_dir(dir.path()).unwrap().any(|e| e
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .contains("corrupt")));
     }
 
     #[test]
@@ -424,7 +460,10 @@ mod tests {
         // Stale lock from a dead pid is taken over.
         std::fs::write(&p, "4294967000").unwrap();
         let l1 = InstanceLock::acquire(&p).unwrap();
-        assert_eq!(std::fs::read_to_string(&p).unwrap(), std::process::id().to_string());
+        assert_eq!(
+            std::fs::read_to_string(&p).unwrap(),
+            std::process::id().to_string()
+        );
         // Same process re-acquiring is fine (our own pid).
         drop(l1);
         assert!(!p.exists());

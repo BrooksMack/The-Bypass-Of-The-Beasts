@@ -29,11 +29,11 @@ action for each blocker. Do not repeat discovery that is already recorded here.
 | Milestone | State |
 |---|---|
 | 1. Core library (host checks, profiles, VBoxManage plans/parsers, downloads, ISO inspection, state machine, network diagnosis, redaction) | Done, 59 unit tests pass |
-| 2. Tauri backend commands + setup orchestrator | In progress |
-| 3. React guided flow + dashboard | Pending |
-| 4. CI (build + tests on Windows/macOS runners) | Pending |
-| 5. Release workflow (NSIS exe, Arm64 dmg, Intel dmg, checksums, SBOM) | Pending |
-| 6. Docs (README, compatibility matrix, troubleshooting, manual test checklist) | Pending |
+| 2. Tauri backend commands + setup orchestrator | Done (compiles on Linux; clippy clean) |
+| 3. React guided flow + dashboard | Done (2 workflow tests on the labelled mock backend) |
+| 4. CI (build + tests on Windows/macOS runners) | Written; first runs pending |
+| 5. Release workflow (NSIS exe, Arm64 dmg, Intel dmg, checksums, SBOM) | Written; first tag pending |
+| 6. Docs (README, compatibility matrix, troubleshooting, manual test checklist) | Done (first pass) |
 | 7. Real hardware smoke test | Blocked: needs owner's machine |
 
 ## Blockers and next actions

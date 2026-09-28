@@ -16,7 +16,10 @@ pub enum InstallOutcome {
     RebootRequired,
     Cancelled,
     AnotherInstallRunning,
-    Failed { code: Option<i32>, message: String },
+    Failed {
+        code: Option<i32>,
+        message: String,
+    },
     /// The installer ran but the app could not tell what happened; detection decides.
     Unknown,
 }
@@ -36,7 +39,10 @@ pub fn interpret_windows_exit(code: Option<i32>) -> InstallOutcome {
 }
 
 /// Windows: run the official `VirtualBox-<ver>-<rev>-Win.exe`. It elevates via UAC by itself.
-pub async fn run_windows_installer(installer: &Path, cancel: Option<&CancellationToken>) -> Result<InstallOutcome> {
+pub async fn run_windows_installer(
+    installer: &Path,
+    cancel: Option<&CancellationToken>,
+) -> Result<InstallOutcome> {
     // Interactive install, but suppress the automatic post-install start of the VirtualBox GUI.
     let args = vec!["-msiparams".to_string(), "VBOX_START=0".to_string()];
     let out = cmd::run(installer, &args, Duration::from_secs(60 * 30), cancel, None).await?;
@@ -61,22 +67,54 @@ pub fn parse_hdiutil_mount_point(plist: &str) -> Option<PathBuf> {
 
 /// macOS: mount the DMG (no Finder window) and locate `VirtualBox.pkg`.
 pub async fn mount_dmg(dmg: &Path) -> Result<MountedDmg> {
-    let args = vec!["attach".to_string(), "-nobrowse".into(), "-plist".into(), dmg.to_string_lossy().into_owned()];
-    let out = cmd::run(Path::new("/usr/bin/hdiutil"), &args, Duration::from_secs(120), None, None).await?;
+    let args = vec![
+        "attach".to_string(),
+        "-nobrowse".into(),
+        "-plist".into(),
+        dmg.to_string_lossy().into_owned(),
+    ];
+    let out = cmd::run(
+        Path::new("/usr/bin/hdiutil"),
+        &args,
+        Duration::from_secs(120),
+        None,
+        None,
+    )
+    .await?;
     if !out.success() {
-        return Err(CoreError::Other(format!("Could not open the VirtualBox disk image: {}", out.stderr.trim())));
+        return Err(CoreError::Other(format!(
+            "Could not open the VirtualBox disk image: {}",
+            out.stderr.trim()
+        )));
     }
-    let mount_point = parse_hdiutil_mount_point(&out.stdout).ok_or_else(|| CoreError::Parse("hdiutil output had no mount point".into()))?;
+    let mount_point = parse_hdiutil_mount_point(&out.stdout)
+        .ok_or_else(|| CoreError::Parse("hdiutil output had no mount point".into()))?;
     let pkg_path = mount_point.join("VirtualBox.pkg");
     if !pkg_path.exists() {
-        return Err(CoreError::Other("The disk image does not contain VirtualBox.pkg.".into()));
+        return Err(CoreError::Other(
+            "The disk image does not contain VirtualBox.pkg.".into(),
+        ));
     }
-    Ok(MountedDmg { mount_point, pkg_path })
+    Ok(MountedDmg {
+        mount_point,
+        pkg_path,
+    })
 }
 
 pub async fn unmount_dmg(mount_point: &Path) -> Result<()> {
-    let args = vec!["detach".to_string(), mount_point.to_string_lossy().into_owned(), "-quiet".into()];
-    let _ = cmd::run(Path::new("/usr/bin/hdiutil"), &args, Duration::from_secs(60), None, None).await;
+    let args = vec![
+        "detach".to_string(),
+        mount_point.to_string_lossy().into_owned(),
+        "-quiet".into(),
+    ];
+    let _ = cmd::run(
+        Path::new("/usr/bin/hdiutil"),
+        &args,
+        Duration::from_secs(60),
+        None,
+        None,
+    )
+    .await;
     Ok(())
 }
 
@@ -85,15 +123,29 @@ pub async fn unmount_dmg(mount_point: &Path) -> Result<()> {
 pub async fn open_pkg_in_installer(pkg: &Path) -> Result<()> {
     let args = vec!["-W".to_string(), pkg.to_string_lossy().into_owned()];
     // `open -W` waits until Installer.app quits; give it up to 30 minutes.
-    let out = cmd::run(Path::new("/usr/bin/open"), &args, Duration::from_secs(60 * 30), None, None).await?;
+    let out = cmd::run(
+        Path::new("/usr/bin/open"),
+        &args,
+        Duration::from_secs(60 * 30),
+        None,
+        None,
+    )
+    .await?;
     if !out.success() {
-        return Err(CoreError::Other(format!("Could not open the installer: {}", out.stderr.trim())));
+        return Err(CoreError::Other(format!(
+            "Could not open the installer: {}",
+            out.stderr.trim()
+        )));
     }
     Ok(())
 }
 
 /// Wait for a detection closure to report an installed VirtualBox, polling with a deadline.
-pub async fn wait_for_install<F, Fut>(mut check: F, deadline: Duration, cancel: Option<&CancellationToken>) -> Result<bool>
+pub async fn wait_for_install<F, Fut>(
+    mut check: F,
+    deadline: Duration,
+    cancel: Option<&CancellationToken>,
+) -> Result<bool>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = bool>,
@@ -120,12 +172,33 @@ mod tests {
     #[test]
     fn exit_codes() {
         assert_eq!(interpret_windows_exit(Some(0)), InstallOutcome::Succeeded);
-        assert_eq!(interpret_windows_exit(Some(3010)), InstallOutcome::RebootRequired);
-        assert_eq!(interpret_windows_exit(Some(1641)), InstallOutcome::RebootRequired);
-        assert_eq!(interpret_windows_exit(Some(1602)), InstallOutcome::Cancelled);
-        assert_eq!(interpret_windows_exit(Some(1223)), InstallOutcome::Cancelled);
-        assert_eq!(interpret_windows_exit(Some(1618)), InstallOutcome::AnotherInstallRunning);
-        assert!(matches!(interpret_windows_exit(Some(1603)), InstallOutcome::Failed { code: Some(1603), .. }));
+        assert_eq!(
+            interpret_windows_exit(Some(3010)),
+            InstallOutcome::RebootRequired
+        );
+        assert_eq!(
+            interpret_windows_exit(Some(1641)),
+            InstallOutcome::RebootRequired
+        );
+        assert_eq!(
+            interpret_windows_exit(Some(1602)),
+            InstallOutcome::Cancelled
+        );
+        assert_eq!(
+            interpret_windows_exit(Some(1223)),
+            InstallOutcome::Cancelled
+        );
+        assert_eq!(
+            interpret_windows_exit(Some(1618)),
+            InstallOutcome::AnotherInstallRunning
+        );
+        assert!(matches!(
+            interpret_windows_exit(Some(1603)),
+            InstallOutcome::Failed {
+                code: Some(1603),
+                ..
+            }
+        ));
         assert_eq!(interpret_windows_exit(None), InstallOutcome::Unknown);
     }
 
@@ -137,7 +210,10 @@ mod tests {
 <dict><key>content-hint</key><string>Apple_HFS</string><key>dev-entry</key><string>/dev/disk4s2</string>
 <key>mount-point</key>
 <string>/Volumes/VirtualBox</string></dict></array></dict></plist>"#;
-        assert_eq!(parse_hdiutil_mount_point(plist), Some(PathBuf::from("/Volumes/VirtualBox")));
+        assert_eq!(
+            parse_hdiutil_mount_point(plist),
+            Some(PathBuf::from("/Volumes/VirtualBox"))
+        );
         assert!(parse_hdiutil_mount_point("nope").is_none());
     }
 

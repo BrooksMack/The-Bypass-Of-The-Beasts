@@ -37,19 +37,31 @@ pub fn vboxmanage_candidates(os: HostOs) -> Vec<PathBuf> {
                 }
             }
             if let Some(pf) = std::env::var_os("ProgramFiles") {
-                v.push(PathBuf::from(pf).join("Oracle").join("VirtualBox").join("VBoxManage.exe"));
+                v.push(
+                    PathBuf::from(pf)
+                        .join("Oracle")
+                        .join("VirtualBox")
+                        .join("VBoxManage.exe"),
+                );
             }
-            if let Some(vbox) = std::env::var_os("VBOX_MSI_INSTALL_PATH").or_else(|| std::env::var_os("VBOX_INSTALL_PATH")) {
+            if let Some(vbox) = std::env::var_os("VBOX_MSI_INSTALL_PATH")
+                .or_else(|| std::env::var_os("VBOX_INSTALL_PATH"))
+            {
                 v.push(PathBuf::from(vbox).join("VBoxManage.exe"));
             }
-            v.push(PathBuf::from(r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe"));
+            v.push(PathBuf::from(
+                r"C:\Program Files\Oracle\VirtualBox\VBoxManage.exe",
+            ));
             v
         }
         HostOs::MacOs => vec![
             PathBuf::from("/Applications/VirtualBox.app/Contents/MacOS/VBoxManage"),
             PathBuf::from("/usr/local/bin/VBoxManage"),
         ],
-        _ => vec![PathBuf::from("/usr/bin/VBoxManage"), PathBuf::from("/usr/lib/virtualbox/VBoxManage")],
+        _ => vec![
+            PathBuf::from("/usr/bin/VBoxManage"),
+            PathBuf::from("/usr/lib/virtualbox/VBoxManage"),
+        ],
     }
 }
 
@@ -80,5 +92,8 @@ pub fn guest_additions_iso_candidates(os: HostOs, install_dir: &Path) -> Vec<Pat
 
 /// Derive the install dir from the VBoxManage path (its parent directory).
 pub fn install_dir_of(vboxmanage: &Path) -> PathBuf {
-    vboxmanage.parent().map(|p| p.to_path_buf()).unwrap_or_default()
+    vboxmanage
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_default()
 }
