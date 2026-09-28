@@ -30,7 +30,8 @@ jobs:
         run: |
           V=$(node -p "require('./package.json').version")
           echo "version=$V" >> "$GITHUB_OUTPUT"
-          if [[ "$V" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+          # 0.x versions and versions with a pre-release suffix are published as pre-releases.
+          if [[ "$V" == *-* || "$V" == 0.* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
       - name: Install Tauri Linux build dependencies
         run: |
           sudo apt-get update

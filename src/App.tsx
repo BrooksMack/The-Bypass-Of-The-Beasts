@@ -37,7 +37,7 @@ export default function App() {
         const [i, s] = await Promise.all([a.getAppInfo(), a.getState()]);
         setInfo(i);
         setState(s);
-        setView(s.stage === "welcome" ? "welcome" : "welcome");
+        setView("welcome");
       })
       .catch((e) => setFatal(errorMessage(e)));
   }, []);
