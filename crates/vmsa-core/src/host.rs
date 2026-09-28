@@ -177,7 +177,7 @@ pub fn current_os() -> HostOs {
 pub fn disk_space(path: &Path) -> Option<DiskSpace> {
     use sysinfo::Disks;
     let probe = nearest_existing_ancestor(path)?;
-    let canonical = std::fs::canonicalize(&probe).unwrap_or(probe.clone());
+    let canonical = strip_verbatim_prefix(std::fs::canonicalize(&probe).unwrap_or(probe.clone()));
     let disks = Disks::new_with_refreshed_list();
     let mut best: Option<(&sysinfo::Disk, usize)> = None;
     for d in disks.list() {
@@ -196,6 +196,18 @@ pub fn disk_space(path: &Path) -> Option<DiskSpace> {
         available_bytes: d.available_space(),
         total_bytes: d.total_space(),
     })
+}
+
+/// Windows `canonicalize` returns `\\?\C:\...`; mount points are reported as `C:\`.
+fn strip_verbatim_prefix(p: PathBuf) -> PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        return PathBuf::from(rest);
+    }
+    p
 }
 
 fn path_starts_with(path: &Path, prefix: &Path) -> bool {
@@ -482,6 +494,22 @@ mod tests {
         assert!(h.is_supported_host());
         h.os = HostOs::Linux;
         assert!(!h.is_supported_host());
+    }
+
+    #[test]
+    fn verbatim_prefix_is_stripped() {
+        assert_eq!(
+            strip_verbatim_prefix(PathBuf::from(r"\\?\C:\Users\x")),
+            PathBuf::from(r"C:\Users\x")
+        );
+        assert_eq!(
+            strip_verbatim_prefix(PathBuf::from(r"\\?\UNC\srv\share")),
+            PathBuf::from(r"\\srv\share")
+        );
+        assert_eq!(
+            strip_verbatim_prefix(PathBuf::from("/Users/x")),
+            PathBuf::from("/Users/x")
+        );
     }
 
     #[test]
