@@ -7,6 +7,9 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Manual run from a branch: builds and publishes v<package.json version>, creating the tag at the
+  # dispatched commit if it does not exist yet. Used when the tag cannot be pushed directly.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -25,7 +28,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node scripts/check-version.mjs "${{ github.ref }}"
+      - run: node scripts/check-version.mjs ${{ github.ref_type == 'tag' && github.ref || '' }}
       - id: v
         run: |
           V=$(node -p "require('./package.json').version")
@@ -219,6 +222,8 @@ jobs:
           cat notes.md
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           name: VM Setup Assistant ${{ env.VERSION }}
           body_path: notes.md
           prerelease: ${{ needs.verify.outputs.prerelease == 'true' }}
