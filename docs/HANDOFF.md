@@ -41,6 +41,13 @@ action for each blocker. Do not repeat discovery that is already recorded here.
 - 2026-09-28: `cargo test --workspace` 60 tests pass; `cargo clippy -D warnings` clean; `npm test` 2 workflow tests (mock backend) pass; `npm run typecheck` clean.
 - 2026-09-28: the Linux debug build launched under Xvfb, rendered the Welcome and Check screens, ran real host inspection and correctly blocked (unsupported host, no virtualization in the container). Screenshots in `docs/screenshots/`.
 
+## Promotion note
+
+The owner mentioned a promotion (about $250 in Claude credits tied to publishing work on GitHub). No link or
+terms were provided in this session, so nothing was verified. When the link is available: read the actual
+requirements, record the deadline and submission steps here, and do not assume that a public repository alone
+qualifies.
+
 ## Blockers and next actions
 
 | Blocker | Next action |
