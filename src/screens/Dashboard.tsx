@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { errorMessage, type Api } from "../lib/api";
 import type { Diagnosis, HostReport, RepairAction, SetupState, VmStatusReport } from "../lib/types";
 import { Badge, ErrorBox, Panel } from "../components/ui";
+import { Identity } from "./Identity";
 
 export function Dashboard({ api, report, state, refresh, onGoTo }: { api: Api; report: HostReport; state: SetupState; refresh: () => Promise<void>; onGoTo: (s: "choose_setup") => void }) {
   const [status, setStatus] = useState<VmStatusReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"controls" | "troubleshoot" | "settings" | "report">("controls");
+  const [tab, setTab] = useState<"controls" | "troubleshoot" | "identity" | "settings" | "report">("controls");
 
   const poll = async () => {
     try {
@@ -57,9 +58,9 @@ export function Dashboard({ api, report, state, refresh, onGoTo }: { api: Api; r
         </p>
       )}
       <div className="actions" role="tablist" aria-label="Sections">
-        {(["controls", "troubleshoot", "settings", "report"] as const).map((t) => (
+        {(["controls", "troubleshoot", "identity", "settings", "report"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "primary" : ""} onClick={() => setTab(t)}>
-            {t === "controls" ? "Start and stop" : t === "troubleshoot" ? "Troubleshooting" : t === "settings" ? "Settings" : "Support report"}
+            {t === "controls" ? "Start and stop" : t === "troubleshoot" ? "Troubleshooting" : t === "identity" ? "VM identity" : t === "settings" ? "Settings" : "Support report"}
           </button>
         ))}
       </div>
@@ -136,6 +137,8 @@ export function Dashboard({ api, report, state, refresh, onGoTo }: { api: Api; r
       )}
 
       {tab === "troubleshoot" && <Troubleshooting api={api} arm={report.guest_arch === "arm64"} running={running} onMessage={setMsg} onError={setError} onChanged={poll} />}
+
+      {tab === "identity" && <Identity api={api} state={state} onChanged={poll} />}
 
       {tab === "settings" && (
         <Panel title="Settings">

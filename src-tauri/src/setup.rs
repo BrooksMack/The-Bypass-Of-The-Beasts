@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter};
 use vmsa_core::cmd::tokio_util_lite::CancellationToken;
 use vmsa_core::download::{self, DownloadPhase, DownloadProgress, DownloadSpec, VirtualBoxRelease};
 use vmsa_core::host::{self, DiskSpace, HostInfo};
+use vmsa_core::identity::{self, IdentityConfig, IdentityPreview};
 use vmsa_core::installer::{self, InstallOutcome};
 use vmsa_core::profile::{self, Assessment, GuestArch, ResourceLimits, StorageEstimate};
 use vmsa_core::state::{DownloadRecord, GuestStatus, SetupChoices, Stage, Verified, VmRecord};
@@ -189,6 +190,14 @@ pub async fn set_choices(app: &AppState, input: ChoicesInput) -> Result<SetupCho
             .map_err(CoreError::InvalidInput)?;
         iso_volume_id = Some(info.volume_id);
     }
+    // Preserve any identity configuration set separately; basic choices never reset it.
+    let identity = {
+        let st = app.state.lock().await;
+        st.choices
+            .as_ref()
+            .map(|c| c.identity.clone())
+            .unwrap_or_default()
+    };
     let choices = SetupChoices {
         guest_arch,
         vm_name: input.vm_name.trim().to_string(),
@@ -197,6 +206,7 @@ pub async fn set_choices(app: &AppState, input: ChoicesInput) -> Result<SetupCho
         iso_path: input.iso_path,
         iso_source: input.iso_source,
         iso_volume_id,
+        identity,
     };
     {
         let mut st = app.state.lock().await;
@@ -547,6 +557,7 @@ async fn create_vm_inner(
         profile: profile::profile_for(choices.guest_arch),
         instance_id: instance_id.to_string(),
         app_version: APP_VERSION.to_string(),
+        identity: choices.identity.clone(),
     };
     let disk_path = plan::disk_path_for(&spec);
 
@@ -590,6 +601,9 @@ async fn create_vm_inner(
                     install_iso_attached: false,
                     guest_additions_iso_attached: false,
                     completed_steps: vec![],
+                    identity_applied: false,
+                    identity_original_extradata: Default::default(),
+                    identity_original_modifyvm: Default::default(),
                 }
             } else {
                 new_vm(app, handle, vbm, &spec, cancel).await?
@@ -649,6 +663,26 @@ async fn create_vm_inner(
     }
     let info = vbm.vm_info(&record.uuid).await?;
     record.config_file = info.config_file.map(PathBuf::from);
+
+    // Apply the opt-in identity configuration once, capturing the pre-change values so it can be
+    // reverted. Skipped entirely when the feature is disabled, preserving the profile defaults.
+    if spec.identity.enabled && !record.identity_applied {
+        emit(
+            handle,
+            ProgressEvent {
+                operation: "create-vm".into(),
+                step: "Apply the guest-visible identity configuration".into(),
+                detail: None,
+                bytes_done: None,
+                bytes_total: None,
+                bytes_per_sec: None,
+                step_index: Some(total),
+                step_count: Some(total),
+            },
+        );
+        apply_identity_to_record(vbm, &mut record, &spec.profile, &spec.identity).await?;
+    }
+
     let mut st = app.state.lock().await;
     st.vm = Some(record.clone());
     st.note(format!("VM ready: {} ({})", record.name, record.uuid));
@@ -698,6 +732,9 @@ async fn new_vm(
         install_iso_attached: false,
         guest_additions_iso_attached: false,
         completed_steps: vec![],
+        identity_applied: false,
+        identity_original_extradata: Default::default(),
+        identity_original_modifyvm: Default::default(),
     };
     let mut st = app.state.lock().await;
     st.vm = Some(record.clone());
@@ -1131,6 +1168,207 @@ pub async fn apply_repair(app: &Arc<AppState>, req: RepairRequest) -> Result<Str
     drop(st);
     app.save().await?;
     Ok(msg)
+}
+
+// ---------- VM identity (compatibility testing) ----------
+
+/// The guest architecture to build a profile from: the chosen one if set, else derived from the
+/// host, else x64 as a safe default for previews.
+async fn current_guest_arch(app: &Arc<AppState>) -> GuestArch {
+    if let Some(a) = app
+        .state
+        .lock()
+        .await
+        .choices
+        .as_ref()
+        .map(|c| c.guest_arch)
+    {
+        return a;
+    }
+    GuestArch::for_host(host::inspect().await.arch).unwrap_or(GuestArch::X64)
+}
+
+/// Return the currently stored identity configuration (default/disabled when none is set).
+pub async fn get_identity(app: &Arc<AppState>) -> Result<IdentityConfig> {
+    Ok(app
+        .state
+        .lock()
+        .await
+        .choices
+        .as_ref()
+        .map(|c| c.identity.clone())
+        .unwrap_or_default())
+}
+
+/// Validate a configuration and store it on the setup choices. Does not touch VirtualBox; the change
+/// is applied at VM creation, or later via [`apply_identity`].
+pub async fn set_identity(app: &Arc<AppState>, cfg: IdentityConfig) -> Result<IdentityConfig> {
+    let problems = identity::validate(&cfg);
+    if !problems.is_empty() {
+        return Err(CoreError::InvalidInput(problems.join(" ")));
+    }
+    let mut st = app.state.lock().await;
+    match st.choices.as_mut() {
+        Some(c) => c.identity = cfg.clone(),
+        None => {
+            return Err(CoreError::InvalidInput(
+                "Choose the basic setup options first, then configure the VM identity.".into(),
+            ))
+        }
+    }
+    st.note(format!(
+        "identity configuration saved (enabled={})",
+        cfg.enabled
+    ));
+    drop(st);
+    app.save().await?;
+    Ok(cfg)
+}
+
+/// A pure preview of what a configuration would do and what it cannot hide. Validates first so the
+/// UI can show problems without saving.
+pub async fn preview_identity(app: &Arc<AppState>, cfg: IdentityConfig) -> Result<IdentityPreview> {
+    let arch = current_guest_arch(app).await;
+    Ok(identity::preview(&cfg, &profile::profile_for(arch)))
+}
+
+/// Capture the values identity will overwrite, so the change can be reverted exactly.
+async fn capture_identity_originals(
+    vbm: &VBoxManage,
+    uuid: &str,
+    profile: &vmsa_core::profile::VmProfile,
+) -> Result<(
+    std::collections::BTreeMap<String, String>,
+    std::collections::BTreeMap<String, String>,
+)> {
+    let info = vbm.vm_info(uuid).await?;
+    let mut modifyvm = std::collections::BTreeMap::new();
+    for k in identity::managed_modifyvm_keys() {
+        if let Some(v) = info.raw.get(*k) {
+            modifyvm.insert((*k).to_string(), v.clone());
+        }
+    }
+    let mut extradata = std::collections::BTreeMap::new();
+    for key in identity::managed_extradata_keys(profile) {
+        if let Some(v) = vbm.extradata(uuid, &key).await? {
+            if !v.is_empty() {
+                extradata.insert(key, v);
+            }
+        }
+    }
+    Ok((extradata, modifyvm))
+}
+
+/// Apply the identity configuration to a VM record, capturing originals on first application.
+async fn apply_identity_to_record(
+    vbm: &VBoxManage,
+    record: &mut VmRecord,
+    profile: &vmsa_core::profile::VmProfile,
+    cfg: &IdentityConfig,
+) -> Result<()> {
+    if !record.identity_applied {
+        let (ed, mv) = capture_identity_originals(vbm, &record.uuid, profile).await?;
+        record.identity_original_extradata = ed;
+        record.identity_original_modifyvm = mv;
+    }
+    for c in identity::apply_commands(cfg, &record.uuid, profile) {
+        vbm.run(&c, None).await?;
+    }
+    record.identity_applied = true;
+    Ok(())
+}
+
+/// Apply the stored identity configuration to the already-created VM. Requires the VM to be off.
+pub async fn apply_identity(app: &Arc<AppState>) -> Result<String> {
+    let (record, cfg, arch) = {
+        let st = app.state.lock().await;
+        (
+            st.vm.clone(),
+            st.choices
+                .as_ref()
+                .map(|c| c.identity.clone())
+                .unwrap_or_default(),
+            st.choices.as_ref().map(|c| c.guest_arch),
+        )
+    };
+    let mut record =
+        record.ok_or_else(|| CoreError::InvalidInput("No VM has been created yet.".into()))?;
+    let problems = identity::validate(&cfg);
+    if !problems.is_empty() {
+        return Err(CoreError::InvalidInput(problems.join(" ")));
+    }
+    if !cfg.enabled {
+        return Err(CoreError::InvalidInput(
+            "Turn on the identity feature and choose at least one setting before applying it."
+                .into(),
+        ));
+    }
+    let profile = profile::profile_for(arch.unwrap_or(GuestArch::X64));
+    let (vbm, _) = vbm_for(app).await?;
+    let info = vbm.vm_info(&record.uuid).await?;
+    if info.state.is_live() {
+        return Err(CoreError::InvalidInput(
+            "Shut Windows down first; the VM identity can only be changed while the VM is off."
+                .into(),
+        ));
+    }
+    let _ = app.begin("apply-identity").await?;
+    let r = apply_identity_to_record(&vbm, &mut record, &profile, &cfg).await;
+    app.end().await;
+    r?;
+    let mut st = app.state.lock().await;
+    st.vm = Some(record);
+    st.note("identity configuration applied to the VM");
+    drop(st);
+    app.save().await?;
+    Ok("The VM identity was applied. Start Windows and use the identity checklist to confirm what it now reports.".into())
+}
+
+/// Revert any applied identity changes, restoring the VM to the values captured before the change.
+pub async fn revert_identity(app: &Arc<AppState>) -> Result<String> {
+    let (record, arch) = {
+        let st = app.state.lock().await;
+        (st.vm.clone(), st.choices.as_ref().map(|c| c.guest_arch))
+    };
+    let mut record =
+        record.ok_or_else(|| CoreError::InvalidInput("No VM has been created yet.".into()))?;
+    if !record.identity_applied {
+        return Ok("There are no identity changes to undo.".into());
+    }
+    let profile = profile::profile_for(arch.unwrap_or(GuestArch::X64));
+    let (vbm, _) = vbm_for(app).await?;
+    let info = vbm.vm_info(&record.uuid).await?;
+    if info.state.is_live() {
+        return Err(CoreError::InvalidInput(
+            "Shut Windows down first; the VM identity can only be changed while the VM is off."
+                .into(),
+        ));
+    }
+    let _ = app.begin("revert-identity").await?;
+    let cmds = identity::revert_commands(
+        &record.uuid,
+        &profile,
+        &record.identity_original_extradata,
+        &record.identity_original_modifyvm,
+    );
+    let r: Result<()> = async {
+        for c in cmds {
+            vbm.run(&c, None).await?;
+        }
+        Ok(())
+    }
+    .await;
+    app.end().await;
+    r?;
+    record.identity_applied = false;
+    record.identity_original_extradata.clear();
+    record.identity_original_modifyvm.clear();
+    let mut st = app.state.lock().await;
+    st.vm = Some(record);
+    st.note("identity configuration reverted");
+    drop(st);
+    app.save().await?;
+    Ok("The VM identity was reverted to its original values.".into())
 }
 
 // ---------- support report ----------

@@ -100,12 +100,23 @@ which is why the second screenshot shows the app stopping with a plain-language 
 |---|---|
 | ![Welcome screen](docs/screenshots/01-welcome-linux.png) | ![Check this computer screen showing detected facts and a blocker](docs/screenshots/02-check-computer-linux.png) |
 
+## Optional: VM identity for compatibility testing
+
+An **off-by-default** feature lets you change the guest-visible hardware identifiers (firmware/SMBIOS,
+system, disk and network adapter) for testing software that behaves differently inside a VM. It uses
+only Oracle's documented `VBoxManage` settings, validates input, is fully reversible, and always shows
+what it **cannot** hide. It does not make a VM undetectable. See
+[docs/VM-IDENTITY.md](docs/VM-IDENTITY.md) and the
+[identity checklist](docs/IDENTITY-CHECKLIST.md). Defaults are unchanged unless you enable it.
+
 ## Documentation
 
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Compatibility and testing matrix](docs/COMPATIBILITY.md)
 - [Manual test checklist](docs/MANUAL-TEST-CHECKLIST.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [VM identity configuration (compatibility testing)](docs/VM-IDENTITY.md)
+- [Identity checklist: what Windows sees](docs/IDENTITY-CHECKLIST.md)
 - [Development setup](CONTRIBUTING.md)
 - [Releasing and signing](docs/RELEASING.md)
 - [Security policy](SECURITY.md)

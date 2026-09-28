@@ -133,6 +133,11 @@ pub fn run() {
             commands::delete_vm,
             commands::forget_setup,
             commands::acknowledge_startup_warning,
+            commands::get_identity_config,
+            commands::set_identity_config,
+            commands::preview_identity_config,
+            commands::apply_identity_config,
+            commands::revert_identity_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running VM Setup Assistant");

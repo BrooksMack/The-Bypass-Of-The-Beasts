@@ -86,6 +86,21 @@ pub struct VmProfile {
     pub unattended_available: bool,
 }
 
+impl VmProfile {
+    /// The emulated storage device name used in `VBoxInternal/Devices/<name>/...` extra-data paths,
+    /// derived from the controller type. Used by the identity feature to address the disk's ATA
+    /// IDENTIFY strings.
+    pub fn storage_device_key(&self) -> &'static str {
+        match self.storage_controller_type.as_str() {
+            "IntelAhci" => "ahci",
+            "PIIX3" | "PIIX4" | "ICH6" => "piix3ide",
+            "LsiLogic" => "lsilogicscsi",
+            "BusLogic" => "buslogic",
+            _ => "ahci",
+        }
+    }
+}
+
 pub fn profile_for(arch: GuestArch) -> VmProfile {
     match arch {
         GuestArch::X64 => VmProfile {

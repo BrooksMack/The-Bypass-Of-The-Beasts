@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::identity::IdentityConfig;
 use crate::profile::{GuestArch, VmProfile, VmSizing};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -35,6 +36,10 @@ pub struct CreateVmSpec {
     /// Opaque id written to the VM's extra data so ownership survives state loss.
     pub instance_id: String,
     pub app_version: String,
+    /// Opt-in guest-visible identity configuration. Disabled by default; when disabled it adds
+    /// no commands and the VM keeps the profile defaults.
+    #[serde(default)]
+    pub identity: IdentityConfig,
 }
 
 /// Step 1: create and register the VM with Oracle's defaults for the OS type.
@@ -454,6 +459,7 @@ mod tests {
             profile: profile_for(arch),
             instance_id: "inst-123".into(),
             app_version: "0.1.0".into(),
+            identity: Default::default(),
         }
     }
 

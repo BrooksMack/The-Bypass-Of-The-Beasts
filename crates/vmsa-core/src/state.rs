@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::host::HostInfo;
+use crate::identity::IdentityConfig;
 use crate::profile::{GuestArch, VmSizing};
 use crate::{CoreError, Result};
 
@@ -61,6 +62,9 @@ pub struct SetupChoices {
     pub iso_path: Option<PathBuf>,
     pub iso_source: Option<IsoSource>,
     pub iso_volume_id: Option<String>,
+    /// Opt-in guest-visible identity configuration for compatibility testing. Disabled by default.
+    #[serde(default)]
+    pub identity: IdentityConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -98,6 +102,17 @@ pub struct VmRecord {
     pub guest_additions_iso_attached: bool,
     /// Which `configure` steps completed (idempotent resume of a partially created VM).
     pub completed_steps: Vec<String>,
+    /// True once an identity configuration has been applied to this VM (at creation or later).
+    #[serde(default)]
+    pub identity_applied: bool,
+    /// Extra-data values captured before identity was applied, keyed by full extra-data key, so the
+    /// change can be reverted exactly. A key absent here had no value and is deleted on revert.
+    #[serde(default)]
+    pub identity_original_extradata: std::collections::BTreeMap<String, String>,
+    /// `showvminfo` values captured before identity was applied (nic1, nictype1, macaddress1,
+    /// hardwareuuid, paravirtprovider) so revert restores the exact prior state.
+    #[serde(default)]
+    pub identity_original_modifyvm: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -365,6 +380,7 @@ mod tests {
             iso_path: Some(PathBuf::from("/Users/x/Downloads/Win11.iso")),
             iso_source: Some(IsoSource::MicrosoftDownloadPage),
             iso_volume_id: Some("CCCOMA_A64FRE_EN-US_DV9".into()),
+            identity: Default::default(),
         }
     }
 
@@ -426,6 +442,9 @@ mod tests {
             install_iso_attached: true,
             guest_additions_iso_attached: true,
             completed_steps: vec![],
+            identity_applied: false,
+            identity_original_extradata: Default::default(),
+            identity_original_modifyvm: Default::default(),
         });
         assert_eq!(s.resume_stage(), Stage::InstallWindows);
         s.guest.windows_installed = Verified::Yes;

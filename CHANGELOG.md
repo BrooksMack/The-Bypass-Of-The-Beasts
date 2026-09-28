@@ -3,6 +3,18 @@
 All notable changes to VM Setup Assistant are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Optional, off-by-default **VM identity configuration** for compatibility testing: set guest-visible
+  firmware/SMBIOS, system, mainboard, chassis, storage (ATA) and network adapter identifiers, choose
+  the network mode, and reduce VirtualBox branding (paravirtualization interface, SMBIOS OEM strings).
+  Uses only documented `VBoxManage` settings, with input validation, a fully reversible apply/revert
+  flow, and a preview that always lists what cannot be hidden. New "VM identity" tab on the dashboard.
+  Documented in `docs/VM-IDENTITY.md` with a verification checklist in `docs/IDENTITY-CHECKLIST.md`.
+  Existing behaviour is unchanged unless the feature is enabled.
+
 ## [0.1.0] - 2026-09-28 (preview)
 
 First preview. Nothing in this release has been verified end-to-end on real hardware by the project;

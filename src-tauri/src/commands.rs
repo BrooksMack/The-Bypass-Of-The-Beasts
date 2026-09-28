@@ -186,6 +186,37 @@ pub async fn network_apply_repair(app: App<'_>, request: RepairRequest) -> Resul
 }
 
 #[tauri::command]
+pub async fn get_identity_config(app: App<'_>) -> Result<vmsa_core::identity::IdentityConfig> {
+    setup::get_identity(&app).await
+}
+
+#[tauri::command]
+pub async fn set_identity_config(
+    app: App<'_>,
+    config: vmsa_core::identity::IdentityConfig,
+) -> Result<vmsa_core::identity::IdentityConfig> {
+    setup::set_identity(&app, config).await
+}
+
+#[tauri::command]
+pub async fn preview_identity_config(
+    app: App<'_>,
+    config: vmsa_core::identity::IdentityConfig,
+) -> Result<vmsa_core::identity::IdentityPreview> {
+    setup::preview_identity(&app, config).await
+}
+
+#[tauri::command]
+pub async fn apply_identity_config(app: App<'_>) -> Result<String> {
+    setup::apply_identity(&app).await
+}
+
+#[tauri::command]
+pub async fn revert_identity_config(app: App<'_>) -> Result<String> {
+    setup::revert_identity(&app).await
+}
+
+#[tauri::command]
 pub async fn build_support_report(app: App<'_>) -> Result<String> {
     setup::support_report(&app).await
 }

@@ -106,3 +106,13 @@ pre.report { max-height: 320px; overflow: auto; background: var(--bg); padding: 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 800px) { .app { grid-template-columns: 1fr; } .sidebar { border-right: none; border-bottom: 1px solid var(--line); } .two-col { grid-template-columns: 1fr; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* VM identity form */
+fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 0.5rem 0.9rem 0.9rem; margin: 1rem 0; }
+fieldset legend { font-weight: 700; padding: 0 0.4rem; }
+.field { display: block; margin: 0.6rem 0; font-weight: 400; }
+.field > span { display: block; font-weight: 600; margin-bottom: 0.25rem; }
+.field small.hint { display: block; margin-top: 0.2rem; }
+.field.toggle { display: flex; align-items: center; gap: 0.5rem; }
+.field.toggle > span { display: inline; margin: 0; }
+.field.toggle input[type="checkbox"] { width: auto; max-width: none; }

@@ -144,6 +144,7 @@ export interface SetupChoices {
   iso_path: string | null;
   iso_source: IsoSource | null;
   iso_volume_id: string | null;
+  identity: IdentityConfig;
 }
 
 export interface ChoicesInput {
@@ -205,6 +206,9 @@ export interface VmRecord {
   install_iso_attached: boolean;
   guest_additions_iso_attached: boolean;
   completed_steps: string[];
+  identity_applied: boolean;
+  identity_original_extradata: Record<string, string>;
+  identity_original_modifyvm: Record<string, string>;
 }
 
 export interface GuestStatus {
@@ -349,6 +353,102 @@ export type RepairRequest =
   | { kind: "reconnect_cable" }
   | { kind: "switch_nic_type"; to: string }
   | { kind: "restore_nic_type" };
+
+// ----- VM identity configuration (compatibility testing) -----
+
+export type NetworkModeCfg =
+  | { mode: "nat" }
+  | { mode: "nat_network"; name: string }
+  | { mode: "bridged"; host_adapter: string }
+  | { mode: "host_only"; host_adapter: string };
+
+export interface FirmwareIdentity {
+  bios_vendor: string | null;
+  bios_version: string | null;
+  bios_release_date: string | null;
+}
+
+export interface SystemIdentity {
+  manufacturer: string | null;
+  product_name: string | null;
+  version: string | null;
+  serial_number: string | null;
+  sku: string | null;
+  family: string | null;
+  uuid: string | null;
+  board_manufacturer: string | null;
+  board_product: string | null;
+  board_serial: string | null;
+  chassis_manufacturer: string | null;
+  chassis_asset_tag: string | null;
+}
+
+export interface StorageIdentity {
+  disk_serial: string | null;
+  disk_model: string | null;
+  disk_firmware_revision: string | null;
+}
+
+export interface BrandingReduction {
+  paravirt_provider: string | null;
+  clear_vbox_oem_strings: boolean;
+}
+
+export interface IdentityConfig {
+  enabled: boolean;
+  firmware: FirmwareIdentity;
+  system: SystemIdentity;
+  storage: StorageIdentity;
+  mac_address: string | null;
+  adapter_model: string | null;
+  network_mode: NetworkModeCfg;
+  branding: BrandingReduction;
+}
+
+export interface IdentityEffect {
+  area: string;
+  change: string;
+  visible_as: string;
+}
+
+export interface IdentityPreview {
+  enabled: boolean;
+  effects: IdentityEffect[];
+  connectivity_note: string;
+  remaining_indicators: string[];
+  command_count: number;
+}
+
+/** Adapter models the backend accepts (mirrors identity::ADAPTER_MODELS). */
+export const ADAPTER_MODELS = ["82540EM", "82543GC", "82545EM", "Am79C973", "virtio", "usbnet"] as const;
+export const PARAVIRT_PROVIDERS = ["default", "none", "legacy", "minimal", "hyperv", "kvm"] as const;
+
+/** A fresh, disabled identity configuration (matches Rust `IdentityConfig::default()`). */
+export function defaultIdentityConfig(): IdentityConfig {
+  return {
+    enabled: false,
+    firmware: { bios_vendor: null, bios_version: null, bios_release_date: null },
+    system: {
+      manufacturer: null,
+      product_name: null,
+      version: null,
+      serial_number: null,
+      sku: null,
+      family: null,
+      uuid: null,
+      board_manufacturer: null,
+      board_product: null,
+      board_serial: null,
+      chassis_manufacturer: null,
+      chassis_asset_tag: null,
+    },
+    storage: { disk_serial: null, disk_model: null, disk_firmware_revision: null },
+    mac_address: null,
+    adapter_model: null,
+    network_mode: { mode: "nat" },
+    branding: { paravirt_provider: null, clear_vbox_oem_strings: false },
+  };
+}
 
 export interface AppInfo {
   version: string;
