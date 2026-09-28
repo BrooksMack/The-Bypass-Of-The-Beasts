@@ -31,8 +31,8 @@ action for each blocker. Do not repeat discovery that is already recorded here.
 | 1. Core library (host checks, profiles, VBoxManage plans/parsers, downloads, ISO inspection, state machine, network diagnosis, redaction) | Done, 59 unit tests pass |
 | 2. Tauri backend commands + setup orchestrator | Done (compiles on Linux; clippy clean) |
 | 3. React guided flow + dashboard | Done (2 workflow tests on the labelled mock backend) |
-| 4. CI (build + tests on Windows/macOS runners) | Written; first runs pending |
-| 5. Release workflow (NSIS exe, Arm64 dmg, Intel dmg, checksums, SBOM) | Written; first tag pending |
+| 4. CI (build + tests on Windows/macOS runners) | Done: green on ubuntu-24.04, windows-2025, macos-15, macos-15-intel (run 36462785013) |
+| 5. Release workflow (NSIS exe, Arm64 dmg, Intel dmg, checksums, SBOM) | Done: v0.1.0 pre-release published 2026-09-28 (run 36466180364) via workflow_dispatch, because this session cannot push tags. All three installers are unsigned. |
 | 6. Docs (README, compatibility matrix, troubleshooting, manual test checklist) | Done (first pass) |
 | 7. Real hardware smoke test | Blocked: needs owner's machine |
 
@@ -52,6 +52,7 @@ qualifies.
 
 | Blocker | Next action |
 |---|---|
+| Release published from the feature branch; `main` is empty, so links to `blob/main/...` do not resolve yet |  Owner merges `claude/vm-setup-assistant-app-cu0hj9` into `main` (or makes it the default branch). In-app and issue-template links use the version tag so they already work. |
 | Repository name `The-Bypass-Of-The-Beasts` does not describe the product | Owner decides: rename this repo (Settings > General > Repository name) or create `vm-setup-assistant` and push this branch there. Code and docs use the current URL until then. |
 | Code signing / notarization credentials | Owner supplies GitHub Actions secrets listed in `docs/RELEASING.md`. Until then, releases are unsigned "preview" builds and the docs say so. |
 | Real VM smoke test | Owner runs `docs/MANUAL-TEST-CHECKLIST.md` on the Apple Silicon Mac (and a Windows x64 PC if available) and records results in `docs/COMPATIBILITY.md`. |

@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Troubleshooting guide
-    url: https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/blob/main/docs/TROUBLESHOOTING.md
+    url: https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/blob/v0.1.0/docs/TROUBLESHOOTING.md
     about: Plain-language answers for the most common problems.

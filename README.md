@@ -33,11 +33,12 @@ Requirements: 8 GB of memory (16 GB recommended), 4 processor cores recommended,
 
 Go to the **[Releases page](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases)** and download the file for your computer:
 
-| Your computer | File name (current version 0.1.0) |
+| Your computer | Download (version 0.1.0, unsigned preview) |
 |---|---|
-| Windows PC (Intel/AMD) | `VM-Setup-Assistant-0.1.0-windows-x64-setup.exe` |
-| Mac with Apple Silicon | `VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg` |
-| Mac with Intel | `VM-Setup-Assistant-0.1.0-macos-intel.dmg` |
+| Windows PC (Intel/AMD) | [VM-Setup-Assistant-0.1.0-windows-x64-setup.exe](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-windows-x64-setup.exe) |
+| Mac with Apple Silicon | [VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg) |
+| Mac with Intel | [VM-Setup-Assistant-0.1.0-macos-intel.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-intel.dmg) |
+| Checksums | [VM-Setup-Assistant-0.1.0-SHA256SUMS.txt](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-SHA256SUMS.txt) |
 
 Not sure which Mac you have? Apple menu › About This Mac: "Chip: Apple M…" means Apple Silicon; "Processor: Intel…" means Intel.
 

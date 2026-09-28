@@ -3,7 +3,7 @@
 All notable changes to VM Setup Assistant are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0] - unreleased preview
+## [0.1.0] - 2026-09-28 (preview)
 
 First preview. Nothing in this release has been verified end-to-end on real hardware by the project;
 the compatibility matrix in `docs/COMPATIBILITY.md` records what has actually been tested.

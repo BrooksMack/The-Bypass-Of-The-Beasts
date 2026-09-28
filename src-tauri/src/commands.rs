@@ -202,6 +202,7 @@ pub async fn save_support_report(path: PathBuf, text: String) -> Result<()> {
 /// Only fixed official pages can be opened from the UI; arbitrary URLs are refused.
 #[tauri::command]
 pub async fn open_official_page(page: String) -> Result<()> {
+    let troubleshooting = format!("https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/blob/v{APP_VERSION}/docs/TROUBLESHOOTING.md");
     let url = match page.as_str() {
         "windows11_x64" => "https://www.microsoft.com/software-download/windows11",
         "windows11_arm64" => "https://www.microsoft.com/software-download/windows11arm64",
@@ -210,7 +211,7 @@ pub async fn open_official_page(page: String) -> Result<()> {
         "virtio_win" => "https://github.com/virtio-win/virtio-win-pkg-scripts",
         "project" => "https://github.com/BrooksMack/The-Bypass-Of-The-Beasts",
         "project_issues" => "https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/issues",
-        "project_troubleshooting" => "https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/blob/main/docs/TROUBLESHOOTING.md",
+        "project_troubleshooting" => troubleshooting.as_str(),
         _ => return Err(CoreError::InvalidInput(format!("unknown page {page}"))),
     };
     tauri_plugin_opener::open_url(url, None::<&str>).map_err(|e| CoreError::Other(e.to_string()))
