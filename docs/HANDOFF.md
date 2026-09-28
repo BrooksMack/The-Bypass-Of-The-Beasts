@@ -36,6 +36,11 @@ action for each blocker. Do not repeat discovery that is already recorded here.
 | 6. Docs (README, compatibility matrix, troubleshooting, manual test checklist) | Done (first pass) |
 | 7. Real hardware smoke test | Blocked: needs owner's machine |
 
+## Evidence so far
+
+- 2026-09-28: `cargo test --workspace` 60 tests pass; `cargo clippy -D warnings` clean; `npm test` 2 workflow tests (mock backend) pass; `npm run typecheck` clean.
+- 2026-09-28: the Linux debug build launched under Xvfb, rendered the Welcome and Check screens, ran real host inspection and correctly blocked (unsupported host, no virtualization in the container). Screenshots in `docs/screenshots/`.
+
 ## Blockers and next actions
 
 | Blocker | Next action |

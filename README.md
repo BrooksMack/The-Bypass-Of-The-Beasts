@@ -90,6 +90,15 @@ Known limitations:
 - No unattended Windows installation: Windows Setup is guided, not automated
 - USB webcam and Wi-Fi passthrough are not part of this release
 
+## Screenshots
+
+Taken from the real application (development build on Linux, 2026-09-28). Linux is not a supported host,
+which is why the second screenshot shows the app stopping with a plain-language blocker instead of continuing.
+
+| Welcome | Check this computer |
+|---|---|
+| ![Welcome screen](docs/screenshots/01-welcome-linux.png) | ![Check this computer screen showing detected facts and a blocker](docs/screenshots/02-check-computer-linux.png) |
+
 ## Documentation
 
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

@@ -10,7 +10,7 @@ columns say anything about Windows actually running.
 | macOS 13+, Apple Silicon | Windows 11 ARM64 | Yes (CI) | Untested | Untested | Untested | Untested |
 | macOS 13+, Intel | Windows 11 x64 | Yes (CI) | Untested | Untested | Untested | Untested |
 | Windows 11 on ARM | any | Yes (same x64 build, runs emulated) | Untested | App refuses with explanation (by design) | N/A | N/A |
-| Linux | any | Yes (dev only, not released) | Yes (dev, 2026-09-28) | App refuses: unsupported host (by design) | N/A | N/A |
+| Linux | any | Yes (dev only, not released) | Yes (dev build under Xvfb, 2026-09-28) | Yes: real host facts shown and the app refuses with an "unsupported host" blocker (screenshot in README, 2026-09-28) | N/A | N/A |
 
 Update this table from `docs/MANUAL-TEST-CHECKLIST.md` results. Record: date, app version, OS version,
 VirtualBox version, Windows build, and what exactly was observed.
