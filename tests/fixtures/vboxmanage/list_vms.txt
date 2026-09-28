@@ -1,0 +1,3 @@
+"Windows 11" {3f2504e0-4f89-41d3-9a0c-0305e82c3301}
+"Ünïcödé VM with spaces {and braces}" {9d0f1c2a-1b2c-4d5e-8f90-abcdef123456}
+"<inaccessible>" {0b1c2d3e-4f50-4617-8899-aabbccddeeff}

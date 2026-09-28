@@ -1,0 +1,20 @@
+API version:                     7_2
+Minimum guest RAM size:          4 Megabytes
+Maximum guest RAM size:          2097152 Megabytes
+Minimum video RAM size:          0 Megabytes
+Maximum video RAM size:          256 Megabytes
+Maximum guest monitor count:     64
+Minimum guest CPU count:         1
+Maximum guest CPU count:         64
+Default machine folder:          /Users/someone/VirtualBox VMs
+Raw-mode Supported:              no
+Exclusive HW virtualization use: on
+Default hard disk format:        VDI
+Log history count:               3
+Default frontend:                
+Default audio driver:            CoreAudio
+Autostart database path:         
+Default Guest Additions ISO:     /Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso
+Logging Level:                   all
+Proxy Mode:                      System
+Proxy URL:                       

@@ -1,0 +1,3 @@
+Virtual machine 'Windows 11' is created and registered.
+UUID: 3f2504e0-4f89-41d3-9a0c-0305e82c3301
+Settings file: '/Users/someone/VirtualBox VMs/Windows 11/Windows 11.vbox'

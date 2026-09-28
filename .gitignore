@@ -1,0 +1,51 @@
+# --- build output ---
+node_modules/
+dist/
+target/
+src-tauri/gen/
+*.tsbuildinfo
+
+# --- virtual machine artifacts: never commit these ---
+*.vdi
+*.vmdk
+*.vhd
+*.vhdx
+*.qcow2
+*.vbox
+*.vbox-prev
+*.sav
+*.nvram
+*.iso
+*.img
+*.dmg
+*.exe
+*.msi
+*.pkg
+*.vbox-extpack
+*.part
+*.part.json
+VirtualBox VMs/
+
+# --- credentials and local state ---
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.mobileprovision
+.env
+.env.*
+!.env.example
+setup-state.json
+*.corrupt-*.json
+support-report*.txt
+logs/
+*.log
+
+# --- editor / OS noise ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

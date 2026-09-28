@@ -1,0 +1,20 @@
+Host Information:
+
+Host time: 2026-09-28T17:00:00.000000000Z
+Processor online count: 12
+Processor count: 12
+Processor online core count: 12
+Processor core count: 12
+Processor supports HW virtualization: yes
+Processor supports PAE: no
+Processor supports long mode: yes
+Processor supports nested paging: yes
+Processor supports unrestricted guest: no
+Processor supports nested HW virtualization: no
+Processor supports virt. vmsave/vmload: no
+Processor#0 speed: unknown
+Processor#0 description: Apple M2 Pro
+Memory size: 24576 MByte
+Memory available: 9876 MByte
+Operating system: Darwin
+Operating system version: 24.6.0

@@ -1,0 +1,15 @@
+Name: /VirtualBox/GuestAdd/Version, value: 7.2.20, timestamp: 1758900000000000000, flags: 
+Name: /VirtualBox/GuestAdd/Revision, value: 175154, timestamp: 1758900000000000000, flags: 
+Name: /VirtualBox/GuestAdd/VersionExt, value: 7.2.20, timestamp: 1758900000000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/Count, value: 1, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/Status, value: Up, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/Name, value: Ethernet, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/MAC, value: 080027ABCDEF, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/V4/IP, value: 10.0.2.15, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/V4/Netmask, value: 255.255.255.0, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/Net/0/V4/Broadcast, value: 10.0.2.255, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/OS/Product, value: Windows 11 Home, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/OS/Release, value: 10.0.26200, timestamp: 1758900001000000000, flags: 
+Name: /VirtualBox/GuestInfo/OS/LoggedInUsers, value: 1, timestamp: 1758900002000000000, flags: TRANSIENT, TRANSRESET
+Name: /VirtualBox/HostInfo/VBoxVer, value: 7.2.20, timestamp: 1758900000000000000, flags: TRANSIENT, RDONLYGUEST
+Name: /VirtualBox/HostInfo/GUI/LanguageID, value: en_US, timestamp: 1758900000000000000, flags: RDONLYGUEST
