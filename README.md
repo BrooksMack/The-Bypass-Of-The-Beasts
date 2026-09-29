@@ -2,11 +2,26 @@
 
 **A friendly desktop app that sets up a Windows 11 virtual machine on your computer, step by step, using Oracle VirtualBox.**
 
-## Set it up with an AI assistant
+## Install it (the easy way)
 
-Copy the prompt below into an AI assistant that can **run commands on your computer** (for example ChatGPT with a coding/agent tool that has terminal access, or a coding agent such as Claude Code or Cursor). It will install the prerequisites, build the app from this repository, and tell you where the finished app is. A plain chat window with no terminal access cannot install anything for you, but it will still turn the prompt into the exact commands to run yourself.
+You do not need to know anything technical. You download one file and open it.
 
-This builds and installs the **assistant app** (a preview, unsigned build). The assistant is what then downloads VirtualBox and Windows 11 and creates the VM when you run it. No AI can create the Windows VM for you inside a sandbox; you run the built app on your own machine for that.
+1. Open the downloads page: **[Releases](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases)**.
+2. Find the newest version at the top, then click the file that matches your computer:
+   - **Windows PC (Intel or AMD):** `VM-Setup-Assistant-0.2.0-windows-x64-setup.exe`
+   - **Mac with an Apple chip (M1, M2, M3, M4):** `VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg`
+   - **Mac with an Intel chip:** `VM-Setup-Assistant-0.2.0-macos-intel.dmg`
+   - Not sure which Mac you have? Click the Apple menu, then **About This Mac**. "Chip: Apple…" means Apple; "Processor: Intel…" means Intel.
+3. Open the file you downloaded and install it like any normal app.
+4. The first time you open it, your computer may warn that the app is from an unknown maker. That is normal for a free preview that is not code-signed yet:
+   - **Windows:** click **More info**, then **Run anyway**.
+   - **Mac:** right-click (or Control-click) the app, choose **Open**, then **Open** again. You only do this once.
+5. Open **VM Setup Assistant** and follow the steps on the screen. It downloads VirtualBox and Windows for you and builds the virtual machine.
+
+<details>
+<summary>Prefer to build it yourself from the code, or have an AI assistant build it? Click here.</summary>
+
+Copy the prompt below into an AI assistant that can **run commands on your computer** (for example ChatGPT with a coding/agent tool that has terminal access, or a coding agent such as Claude Code or Cursor). A plain chat window with no terminal access cannot install anything for you, but it will still turn the prompt into the exact commands to run yourself. This builds the same **assistant app** you would otherwise download.
 
 ````text
 You are helping me build and install a desktop app called "VM Setup Assistant" from its
@@ -47,6 +62,8 @@ password or a large download.
    cannot, create the Windows VM yourself.
 ````
 
+</details>
+
 > **Status: preview.** The app builds and its logic is tested, but the full "install Windows" path has **not yet been verified end-to-end on real hardware by this project**. Installers are currently **unsigned preview builds**. Read [What works today](#6-what-works-today-and-what-is-still-experimental) before relying on it.
 
 ## 1. What does this app do?
@@ -78,12 +95,12 @@ Requirements: 8 GB of memory (16 GB recommended), 4 processor cores recommended,
 
 Go to the **[Releases page](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases)** and download the file for your computer:
 
-| Your computer | Download (version 0.1.0, unsigned preview) |
+| Your computer | Download (version 0.2.0, unsigned preview) |
 |---|---|
-| Windows PC (Intel/AMD) | [VM-Setup-Assistant-0.1.0-windows-x64-setup.exe](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-windows-x64-setup.exe) |
-| Mac with Apple Silicon | [VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg) |
-| Mac with Intel | [VM-Setup-Assistant-0.1.0-macos-intel.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-intel.dmg) |
-| Checksums | [VM-Setup-Assistant-0.1.0-SHA256SUMS.txt](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-SHA256SUMS.txt) |
+| Windows PC (Intel/AMD) | [VM-Setup-Assistant-0.2.0-windows-x64-setup.exe](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-windows-x64-setup.exe) |
+| Mac with Apple Silicon | [VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg) |
+| Mac with Intel | [VM-Setup-Assistant-0.2.0-macos-intel.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-macos-intel.dmg) |
+| Checksums | [VM-Setup-Assistant-0.2.0-SHA256SUMS.txt](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-SHA256SUMS.txt) |
 
 Not sure which Mac you have? Apple menu › About This Mac: "Chip: Apple M…" means Apple Silicon; "Processor: Intel…" means Intel.
 
