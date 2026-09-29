@@ -9,6 +9,8 @@ import type {
   GuestItem,
   GuestStatus,
   HostReport,
+  IdentityConfig,
+  IdentityPreview,
   InstallReport,
   IsoInfo,
   OfficialPage,
@@ -54,6 +56,11 @@ export interface Api {
   openVmFolder(): Promise<void>;
   deleteVm(confirmName: string): Promise<string>;
   forgetSetup(): Promise<SetupState>;
+  getIdentityConfig(): Promise<IdentityConfig>;
+  setIdentityConfig(config: IdentityConfig): Promise<IdentityConfig>;
+  previewIdentityConfig(config: IdentityConfig): Promise<IdentityPreview>;
+  applyIdentityConfig(): Promise<string>;
+  revertIdentityConfig(): Promise<string>;
   // OS dialogs
   pickIso(): Promise<string | null>;
   pickFolder(): Promise<string | null>;
@@ -152,6 +159,11 @@ async function tauriApi(): Promise<Api> {
     openVmFolder: () => invoke("open_vm_folder"),
     deleteVm: (confirmName) => invoke("delete_vm", { confirmName }),
     forgetSetup: () => invoke("forget_setup"),
+    getIdentityConfig: () => invoke("get_identity_config"),
+    setIdentityConfig: (config) => invoke("set_identity_config", { config }),
+    previewIdentityConfig: (config) => invoke("preview_identity_config", { config }),
+    applyIdentityConfig: () => invoke("apply_identity_config"),
+    revertIdentityConfig: () => invoke("revert_identity_config"),
     pickIso: async () =>
       single(await dialog.open({ multiple: false, directory: false, title: "Choose the Windows 11 ISO", filters: [{ name: "Disc image", extensions: ["iso"] }] })),
     pickFolder: async () => single(await dialog.open({ multiple: false, directory: true, title: "Choose where to store the virtual machine" })),

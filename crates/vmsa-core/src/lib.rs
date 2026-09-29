@@ -2,6 +2,7 @@
 //!
 //! Responsibilities (see docs/ARCHITECTURE.md):
 //! - `host`: inspect the host machine (OS, real CPU architecture, RAM, CPUs, disk, virtualization hints)
+//! - `identity`: guest-visible VM identity configuration for compatibility testing (opt-in)
 //! - `profile`: architecture-specific, version-aware VM configuration profiles and resource sizing
 //! - `vbox`: typed VBoxManage command construction, execution and output parsing
 //! - `download`: resumable, verified downloads from official sources
@@ -18,6 +19,7 @@ pub mod diagnostics;
 pub mod download;
 pub mod error;
 pub mod host;
+pub mod identity;
 pub mod installer;
 pub mod iso;
 pub mod network;

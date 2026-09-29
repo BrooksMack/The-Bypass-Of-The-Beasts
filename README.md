@@ -2,6 +2,68 @@
 
 **A friendly desktop app that sets up a Windows 11 virtual machine on your computer, step by step, using Oracle VirtualBox.**
 
+## Install it (the easy way)
+
+You do not need to know anything technical. You download one file and open it.
+
+1. Open the downloads page: **[Releases](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases)**.
+2. Find the newest version at the top, then click the file that matches your computer:
+   - **Windows PC (Intel or AMD):** `VM-Setup-Assistant-0.2.0-windows-x64-setup.exe`
+   - **Mac with an Apple chip (M1, M2, M3, M4):** `VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg`
+   - **Mac with an Intel chip:** `VM-Setup-Assistant-0.2.0-macos-intel.dmg`
+   - Not sure which Mac you have? Click the Apple menu, then **About This Mac**. "Chip: Apple…" means Apple; "Processor: Intel…" means Intel.
+3. Open the file you downloaded and install it like any normal app.
+4. The first time you open it, your computer may warn that the app is from an unknown maker. That is normal for a free preview that is not code-signed yet:
+   - **Windows:** click **More info**, then **Run anyway**.
+   - **Mac:** right-click (or Control-click) the app, choose **Open**, then **Open** again. You only do this once.
+5. Open **VM Setup Assistant** and follow the steps on the screen. It downloads VirtualBox and Windows for you and builds the virtual machine.
+
+<details>
+<summary>Prefer to build it yourself from the code, or have an AI assistant build it? Click here.</summary>
+
+Copy the prompt below into an AI assistant that can **run commands on your computer** (for example ChatGPT with a coding/agent tool that has terminal access, or a coding agent such as Claude Code or Cursor). A plain chat window with no terminal access cannot install anything for you, but it will still turn the prompt into the exact commands to run yourself. This builds the same **assistant app** you would otherwise download.
+
+````text
+You are helping me build and install a desktop app called "VM Setup Assistant" from its
+source code, on my computer, using your command-execution/terminal tool. Work step by step,
+show me each command before you run it, and stop and ask me if any step fails or needs my
+password or a large download.
+
+1. Check my operating system first. This app supports ONLY Windows 10/11 on x64 (Intel/AMD)
+   and macOS 13+ (Apple Silicon or Intel). If I am on Linux or Windows-on-ARM, tell me a real
+   build is not supported and stop.
+
+2. Install any missing prerequisites:
+   - Git
+   - Node.js 20 LTS or newer (includes npm)
+   - Rust via rustup (stable toolchain, 1.85 or newer)
+   - macOS only: Xcode Command Line Tools  ->  xcode-select --install
+   - Windows only: Microsoft C++ Build Tools (the "Desktop development with C++" workload)
+     and the WebView2 runtime (already present on Windows 11).
+
+3. Get the source:
+   git clone https://github.com/BrooksMack/The-Bypass-Of-The-Beasts.git
+   cd The-Bypass-Of-The-Beasts
+   (If someone gave me a specific branch, run: git checkout <that-branch>  before continuing.)
+
+4. Install dependencies and verify the project is healthy before building:
+   npm ci
+   npm run typecheck && npm test && npm run build
+   cargo test --workspace
+
+5. Build the desktop app:
+   npm run tauri -- build
+   Then tell me the exact path of the installer/app it produced (a .dmg on macOS, an .exe /
+   NSIS installer on Windows) and how to launch it. To just try it without packaging, you can
+   run:  npm run tauri -- dev
+
+6. Remind me that this only installs the assistant app. When I launch it, the app itself
+   downloads VirtualBox and the Windows 11 ISO and creates the VM. You do not need to, and
+   cannot, create the Windows VM yourself.
+````
+
+</details>
+
 > **Status: preview.** The app builds and its logic is tested, but the full "install Windows" path has **not yet been verified end-to-end on real hardware by this project**. Installers are currently **unsigned preview builds**. Read [What works today](#6-what-works-today-and-what-is-still-experimental) before relying on it.
 
 ## 1. What does this app do?
@@ -33,12 +95,12 @@ Requirements: 8 GB of memory (16 GB recommended), 4 processor cores recommended,
 
 Go to the **[Releases page](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases)** and download the file for your computer:
 
-| Your computer | Download (version 0.1.0, unsigned preview) |
+| Your computer | Download (version 0.2.0, unsigned preview) |
 |---|---|
-| Windows PC (Intel/AMD) | [VM-Setup-Assistant-0.1.0-windows-x64-setup.exe](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-windows-x64-setup.exe) |
-| Mac with Apple Silicon | [VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-apple-silicon.dmg) |
-| Mac with Intel | [VM-Setup-Assistant-0.1.0-macos-intel.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-macos-intel.dmg) |
-| Checksums | [VM-Setup-Assistant-0.1.0-SHA256SUMS.txt](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.1.0/VM-Setup-Assistant-0.1.0-SHA256SUMS.txt) |
+| Windows PC (Intel/AMD) | [VM-Setup-Assistant-0.2.0-windows-x64-setup.exe](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-windows-x64-setup.exe) |
+| Mac with Apple Silicon | [VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-macos-apple-silicon.dmg) |
+| Mac with Intel | [VM-Setup-Assistant-0.2.0-macos-intel.dmg](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-macos-intel.dmg) |
+| Checksums | [VM-Setup-Assistant-0.2.0-SHA256SUMS.txt](https://github.com/BrooksMack/The-Bypass-Of-The-Beasts/releases/download/v0.2.0/VM-Setup-Assistant-0.2.0-SHA256SUMS.txt) |
 
 Not sure which Mac you have? Apple menu › About This Mac: "Chip: Apple M…" means Apple Silicon; "Processor: Intel…" means Intel.
 
@@ -100,12 +162,23 @@ which is why the second screenshot shows the app stopping with a plain-language 
 |---|---|
 | ![Welcome screen](docs/screenshots/01-welcome-linux.png) | ![Check this computer screen showing detected facts and a blocker](docs/screenshots/02-check-computer-linux.png) |
 
+## Optional: VM identity for compatibility testing
+
+An **off-by-default** feature lets you change the guest-visible hardware identifiers (firmware/SMBIOS,
+system, disk and network adapter) for testing software that behaves differently inside a VM. It uses
+only Oracle's documented `VBoxManage` settings, validates input, is fully reversible, and always shows
+what it **cannot** hide. It does not make a VM undetectable. See
+[docs/VM-IDENTITY.md](docs/VM-IDENTITY.md) and the
+[identity checklist](docs/IDENTITY-CHECKLIST.md). Defaults are unchanged unless you enable it.
+
 ## Documentation
 
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Compatibility and testing matrix](docs/COMPATIBILITY.md)
 - [Manual test checklist](docs/MANUAL-TEST-CHECKLIST.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [VM identity configuration (compatibility testing)](docs/VM-IDENTITY.md)
+- [Identity checklist: what Windows sees](docs/IDENTITY-CHECKLIST.md)
 - [Development setup](CONTRIBUTING.md)
 - [Releasing and signing](docs/RELEASING.md)
 - [Security policy](SECURITY.md)

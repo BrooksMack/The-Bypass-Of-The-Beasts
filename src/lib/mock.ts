@@ -7,12 +7,15 @@ import type {
   DownloadRecord,
   GuestStatus,
   HostReport,
+  IdentityConfig,
+  IdentityPreview,
   ProgressEvent,
   SetupState,
   Stage,
   VmRecord,
   VmStatusReport,
 } from "./types";
+import { defaultIdentityConfig } from "./types";
 
 const GIB = 1024 ** 3;
 
@@ -177,7 +180,7 @@ export function createMockApi(opts: MockOptions = {}): Api {
       if (!input.vm_name.trim()) throw { kind: "invalid_input", 0: "Please give the VM a name." };
       if (input.ram_mb < 4096) throw { kind: "invalid_input", 0: "Windows 11 needs at least 4096 MB of memory." };
       if (input.iso_path && /x64/i.test(input.iso_path)) throw { kind: "invalid_input", 0: "This is a Windows x64 ISO, but this computer needs the Windows 11 ARM64 ISO." };
-      state.choices = { guest_arch: "arm64", vm_name: input.vm_name, base_folder: input.base_folder ?? report.default_base_folder, sizing: { ram_mb: input.ram_mb, cpus: input.cpus, disk_gb: input.disk_gb }, iso_path: input.iso_path, iso_source: input.iso_source, iso_volume_id: input.iso_path ? "CCCOMA_A64FRE_EN-US_DV9" : null };
+      state.choices = { guest_arch: "arm64", vm_name: input.vm_name, base_folder: input.base_folder ?? report.default_base_folder, sizing: { ram_mb: input.ram_mb, cpus: input.cpus, disk_gb: input.disk_gb }, iso_path: input.iso_path, iso_source: input.iso_source, iso_volume_id: input.iso_path ? "CCCOMA_A64FRE_EN-US_DV9" : null, identity: state.choices?.identity ?? defaultIdentityConfig() };
       if (state.stage === "check_computer") state.stage = "choose_setup";
       return state.choices;
     },
@@ -223,7 +226,7 @@ export function createMockApi(opts: MockOptions = {}): Api {
         emit({ operation: "create-vm", step: steps[i], detail: null, bytes_done: null, bytes_total: null, bytes_per_sec: null, step_index: i + 1, step_count: steps.length });
         await sleep(delayMs / 2);
       }
-      const vm: VmRecord = { uuid: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", name: state.choices.vm_name, config_file: null, disk_path: null, base_folder: state.choices.base_folder, created_by_app: true, created_at: new Date().toISOString(), original_config: {}, install_iso_attached: true, guest_additions_iso_attached: true, completed_steps: steps };
+      const vm: VmRecord = { uuid: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", name: state.choices.vm_name, config_file: null, disk_path: null, base_folder: state.choices.base_folder, created_by_app: true, created_at: new Date().toISOString(), original_config: {}, install_iso_attached: true, guest_additions_iso_attached: true, completed_steps: steps, identity_applied: state.choices.identity.enabled, identity_original_extradata: {}, identity_original_modifyvm: {} };
       state.vm = vm;
       state.stage = "install_windows";
       return vm;
@@ -291,6 +294,57 @@ export function createMockApi(opts: MockOptions = {}): Api {
     async forgetSetup() {
       state = freshState();
       return structuredClone(state);
+    },
+    async getIdentityConfig() {
+      return structuredClone(state.choices?.identity ?? defaultIdentityConfig());
+    },
+    async setIdentityConfig(config: IdentityConfig) {
+      if (config.enabled && config.mac_address && !/^[0-9a-fA-F]{12}$/.test(config.mac_address.replace(/[:\-.]/g, ""))) {
+        throw { kind: "invalid_input", 0: "MAC address must be 12 hexadecimal digits, e.g. 080027AABBCC." };
+      }
+      if (state.choices) state.choices.identity = structuredClone(config);
+      else throw { kind: "invalid_input", 0: "Choose the basic setup options first, then configure the VM identity." };
+      return structuredClone(config);
+    },
+    async previewIdentityConfig(config: IdentityConfig): Promise<IdentityPreview> {
+      const effects: IdentityPreview["effects"] = [];
+      if (config.enabled) {
+        if (config.system.product_name || config.system.manufacturer) effects.push({ area: "System", change: "Sets the SMBIOS system manufacturer/product the guest reads.", visible_as: "Get-CimInstance Win32_ComputerSystem; msinfo32." });
+        if (config.storage.disk_serial || config.storage.disk_model) effects.push({ area: "Storage", change: "Sets the disk ATA serial/model strings.", visible_as: "wmic diskdrive get Model,SerialNumber." });
+        if (config.mac_address) effects.push({ area: "Network adapter address", change: "Sets the adapter MAC address.", visible_as: "ipconfig /all; getmac." });
+        if (config.branding.paravirt_provider) effects.push({ area: "Paravirtualization", change: `Sets the paravirtualization interface to '${config.branding.paravirt_provider}'.`, visible_as: "CPUID leaf 0x40000000 in the guest." });
+      }
+      const remaining = [
+        "Guest Additions, if installed, expose VBoxService.exe and \\VirtualBox\\GuestInfo guest properties.",
+        "The emulated GPU and monitor still report VirtualBox.",
+        "PCI/USB device IDs of the emulated chipset are VirtualBox's and are not changed by these settings.",
+        "Timing and CPUID-based checks can still reveal virtualization.",
+      ];
+      if (config.branding.paravirt_provider !== "none") remaining.push("The hypervisor is still advertised through CPUID (paravirtualization is not set to none).");
+      if (!config.mac_address) remaining.push("The MAC keeps VirtualBox's 08:00:27 OUI prefix; set a MAC to change it.");
+      const note =
+        config.network_mode.mode === "bridged"
+          ? "The guest gets a LAN address and is reachable like a real machine."
+          : config.network_mode.mode === "host_only"
+          ? "The guest can reach only the host, with no outbound internet."
+          : config.network_mode.mode === "nat_network"
+          ? "Outbound internet works and VMs on the named network can reach each other."
+          : "Outbound internet works; the guest is hidden behind the host (10.0.2.x).";
+      return { enabled: config.enabled, effects, connectivity_note: note, remaining_indicators: remaining, command_count: config.enabled ? effects.length + 1 : 0 };
+    },
+    async applyIdentityConfig() {
+      if (!state.vm) throw { kind: "invalid_input", 0: "No VM has been created yet." };
+      if (running) throw { kind: "invalid_input", 0: "Shut Windows down first; the VM identity can only be changed while the VM is off." };
+      if (!state.choices?.identity.enabled) throw { kind: "invalid_input", 0: "Turn on the identity feature and choose at least one setting before applying it." };
+      state.vm.identity_applied = true;
+      return "The VM identity was applied (MOCK). Use the identity checklist to confirm what Windows reports.";
+    },
+    async revertIdentityConfig() {
+      if (!state.vm) throw { kind: "invalid_input", 0: "No VM has been created yet." };
+      if (running) throw { kind: "invalid_input", 0: "Shut Windows down first; the VM identity can only be changed while the VM is off." };
+      if (!state.vm.identity_applied) return "There are no identity changes to undo.";
+      state.vm.identity_applied = false;
+      return "The VM identity was reverted to its original values (MOCK).";
     },
     async pickIso() {
       return window.prompt("[MOCK] Path to the Windows 11 ISO", "/Users/you/Downloads/Win11_25H2_English_Arm64.iso");

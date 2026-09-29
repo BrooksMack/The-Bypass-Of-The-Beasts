@@ -38,6 +38,7 @@ that run on Linux CI without VirtualBox.
 | Dependency install | `vmsa-core::installer` | Windows: runs the official `.exe` (self-elevating via UAC), interprets MSI exit codes (0, 3010, 1602, 1618…). macOS: `hdiutil attach -plist`, `open -W VirtualBox.pkg`, detach; detection decides success. |
 | VirtualBox integration | `vmsa-core::vbox` | `plan` builds argument arrays (pure, tested); `parse` handles `--machinereadable`, `list vms`, `guestproperty`, `createvm`, `hostinfo`; `client` runs them with timeouts, cancellation and `LANG=C`. |
 | VM ownership | extra data `VMSetupAssistant/InstanceId` + state file | A matching name never implies ownership. Only VMs carrying the marker of this setup are adopted or deleted. |
+| VM identity (opt-in) | `vmsa-core::identity` | Guest-visible identity for compatibility testing: DMI/SMBIOS, ATA storage strings, NIC identity/mode, paravirt provider and OEM strings via documented `VBoxManage` settings. Pure command construction, validation, reversible apply/revert, and a preview that lists what cannot be hidden. Off by default. |
 | Setup state | `vmsa-core::state` | JSON, atomic writes, schema version, corrupt-file backup, `resume_stage()` derived from durable facts, bounded history, lock file. |
 | Guest health | `setup::derive_guest_status` | Only observable facts (VM state, guest properties) are auto-verified; internet, updates and activation need user confirmation. |
 | Diagnostics | `vmsa-core::diagnostics` | Regex redaction of secrets, keys, e-mails, user folders, MACs, public IPs; report preview before save; never uploaded. |
@@ -50,6 +51,8 @@ that run on Linux CI without VirtualBox.
   http plugin exposed to it. External pages are opened only from a fixed allow-list (`open_official_page`).
 - All process invocations pass argument arrays. User-provided names, paths and URLs are never interpolated
   into a shell string.
+- The optional VM identity feature uses only documented `VBoxManage` settings, is off by default, validates
+  input, is reversible, and never claims a VM is undetectable (`vmsa-core::identity`).
 - Downloaded metadata (`LATEST-STABLE.TXT`, `SHA256SUMS`) is parsed strictly; no remote script is executed.
 - The app runs unprivileged. Elevation happens only inside Oracle's own installer (UAC / macOS Installer).
 - Support reports are redacted on creation and again on save.
