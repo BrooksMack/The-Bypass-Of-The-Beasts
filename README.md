@@ -2,6 +2,51 @@
 
 **A friendly desktop app that sets up a Windows 11 virtual machine on your computer, step by step, using Oracle VirtualBox.**
 
+## Set it up with an AI assistant
+
+Copy the prompt below into an AI assistant that can **run commands on your computer** (for example ChatGPT with a coding/agent tool that has terminal access, or a coding agent such as Claude Code or Cursor). It will install the prerequisites, build the app from this repository, and tell you where the finished app is. A plain chat window with no terminal access cannot install anything for you, but it will still turn the prompt into the exact commands to run yourself.
+
+This builds and installs the **assistant app** (a preview, unsigned build). The assistant is what then downloads VirtualBox and Windows 11 and creates the VM when you run it. No AI can create the Windows VM for you inside a sandbox; you run the built app on your own machine for that.
+
+````text
+You are helping me build and install a desktop app called "VM Setup Assistant" from its
+source code, on my computer, using your command-execution/terminal tool. Work step by step,
+show me each command before you run it, and stop and ask me if any step fails or needs my
+password or a large download.
+
+1. Check my operating system first. This app supports ONLY Windows 10/11 on x64 (Intel/AMD)
+   and macOS 13+ (Apple Silicon or Intel). If I am on Linux or Windows-on-ARM, tell me a real
+   build is not supported and stop.
+
+2. Install any missing prerequisites:
+   - Git
+   - Node.js 20 LTS or newer (includes npm)
+   - Rust via rustup (stable toolchain, 1.85 or newer)
+   - macOS only: Xcode Command Line Tools  ->  xcode-select --install
+   - Windows only: Microsoft C++ Build Tools (the "Desktop development with C++" workload)
+     and the WebView2 runtime (already present on Windows 11).
+
+3. Get the source:
+   git clone https://github.com/BrooksMack/The-Bypass-Of-The-Beasts.git
+   cd The-Bypass-Of-The-Beasts
+   (If someone gave me a specific branch, run: git checkout <that-branch>  before continuing.)
+
+4. Install dependencies and verify the project is healthy before building:
+   npm ci
+   npm run typecheck && npm test && npm run build
+   cargo test --workspace
+
+5. Build the desktop app:
+   npm run tauri -- build
+   Then tell me the exact path of the installer/app it produced (a .dmg on macOS, an .exe /
+   NSIS installer on Windows) and how to launch it. To just try it without packaging, you can
+   run:  npm run tauri -- dev
+
+6. Remind me that this only installs the assistant app. When I launch it, the app itself
+   downloads VirtualBox and the Windows 11 ISO and creates the VM. You do not need to, and
+   cannot, create the Windows VM yourself.
+````
+
 > **Status: preview.** The app builds and its logic is tested, but the full "install Windows" path has **not yet been verified end-to-end on real hardware by this project**. Installers are currently **unsigned preview builds**. Read [What works today](#6-what-works-today-and-what-is-still-experimental) before relying on it.
 
 ## 1. What does this app do?
