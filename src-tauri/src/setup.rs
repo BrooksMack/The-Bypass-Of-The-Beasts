@@ -119,10 +119,8 @@ pub async fn inspect_host(app: &AppState) -> Result<HostReport> {
         let mut st = app.state.lock().await;
         st.summarize_host(&host);
         st.virtualbox.detected_version = virtualbox.as_ref().map(|v| v.version_raw.clone());
-        if virtualbox.is_some() && st.virtualbox.reboot_pending {
-            st.virtualbox.reboot_pending = false;
-            st.note("VirtualBox detected after restart; reboot_pending cleared");
-        }
+        st.virtualbox
+            .observe_boot(vmsa_core::host::boot_time(), virtualbox.is_some());
         if st.stage < Stage::CheckComputer {
             st.set_stage(Stage::CheckComputer);
         }
@@ -362,6 +360,7 @@ pub async fn run_installer(app: &Arc<AppState>, handle: &AppHandle) -> Result<In
         });
     }
     let host = host::inspect().await;
+    let installer_boot_time = vmsa_core::host::boot_time();
     let cancel = app.begin("install-virtualbox").await?;
     let step = |s: &str, d: Option<&str>| {
         emit(
@@ -425,6 +424,11 @@ pub async fn run_installer(app: &Arc<AppState>, handle: &AppHandle) -> Result<In
         let mut st = app.state.lock().await;
         st.virtualbox.installer_outcome = Some(format!("{outcome:?}"));
         st.virtualbox.reboot_pending = reboot_pending;
+        st.virtualbox.reboot_requested_boot_time = if reboot_pending && installer_boot_time != 0 {
+            Some(installer_boot_time)
+        } else {
+            None
+        };
         st.virtualbox.detected_version = detected.as_ref().map(|v| v.version_raw.clone());
         st.note(format!(
             "installer finished: {outcome:?}; detected={}",
@@ -455,6 +459,11 @@ async fn vbm_for(app: &AppState) -> Result<(VBoxManage, VirtualBoxInstall)> {
 }
 
 pub async fn create_vm(app: &Arc<AppState>, handle: &AppHandle) -> Result<VmRecord> {
+    if app.state.lock().await.virtualbox.reboot_pending {
+        return Err(CoreError::InvalidInput(
+            "Restart this computer before creating the VM.".into(),
+        ));
+    }
     let (choices, instance_id, existing_record) = {
         let st = app.state.lock().await;
         (st.choices.clone(), st.instance_id.clone(), st.vm.clone())
@@ -590,6 +599,7 @@ async fn create_vm_inner(
                     install_iso_attached: false,
                     guest_additions_iso_attached: false,
                     completed_steps: vec![],
+                    configuration_complete: false,
                 }
             } else {
                 new_vm(app, handle, vbm, &spec, cancel).await?
@@ -597,6 +607,9 @@ async fn create_vm_inner(
         }
     };
 
+    if record.is_configured() {
+        return Ok(record);
+    }
     let info = vbm.vm_info(&record.uuid).await?;
     if info.state.is_live() {
         return Err(CoreError::InvalidInput(
@@ -649,6 +662,7 @@ async fn create_vm_inner(
     }
     let info = vbm.vm_info(&record.uuid).await?;
     record.config_file = info.config_file.map(PathBuf::from);
+    record.configuration_complete = true;
     let mut st = app.state.lock().await;
     st.vm = Some(record.clone());
     st.note(format!("VM ready: {} ({})", record.name, record.uuid));
@@ -698,6 +712,7 @@ async fn new_vm(
         install_iso_attached: false,
         guest_additions_iso_attached: false,
         completed_steps: vec![],
+        configuration_complete: false,
     };
     let mut st = app.state.lock().await;
     st.vm = Some(record.clone());
@@ -914,6 +929,13 @@ pub async fn control(app: &Arc<AppState>, action: &str) -> Result<String> {
     let info = vbm.vm_info(&record.uuid).await?;
     let (c, msg) = match action {
         "start" => {
+            if !record.is_configured()
+                && app.state.lock().await.guest.windows_installed != Verified::Yes
+            {
+                return Err(CoreError::InvalidInput(
+                    "Finish creating the VM before starting Windows.".into(),
+                ));
+            }
             if info.state.is_live() {
                 return Ok(
                     "Windows is already running. Its window may be behind other windows.".into(),
@@ -1276,4 +1298,31 @@ pub async fn delete_vm(app: &Arc<AppState>, confirm_name: &str) -> Result<String
     drop(st);
     app.save().await?;
     Ok("The VM and its virtual disk were deleted.".into())
+}
+
+pub async fn media_action(
+    app: &Arc<AppState>,
+    action: vmsa_core::media::MediaAction,
+) -> Result<String> {
+    let cancel = app.begin("camera-microphone").await?;
+    let result = async {
+        let record = app
+            .state
+            .lock()
+            .await
+            .vm
+            .clone()
+            .ok_or_else(|| CoreError::InvalidInput("Create the VM first.".into()))?;
+        let (vbm, _) = vbm_for(app).await?;
+        let info = vbm.vm_info(&record.uuid).await?;
+        let command = vmsa_core::media::command(&record.uuid, info.state, &action)?;
+        vbm.run(&command, Some(&cancel)).await?;
+        Ok(format!(
+            "{}. Test in Windows Camera or Sound Recorder to verify the device works.",
+            command.description
+        ))
+    }
+    .await;
+    app.end().await;
+    result
 }

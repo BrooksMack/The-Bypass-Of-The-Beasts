@@ -5,7 +5,7 @@ import { ErrorBox, OkCard, Panel, ProgressView } from "../components/ui";
 
 export function InstallDependencies({ api, report, state, refresh, onNext }: { api: Api; report: HostReport; state: SetupState; refresh: (withHost?: boolean) => Promise<void>; onNext: () => void }) {
   const vb = report.virtualbox;
-  const ok = !!vb && report.virtualbox_version_ok !== false;
+  const ok = !!vb && report.virtualbox_version_ok !== false && !state.virtualbox.reboot_pending;
   const isMac = report.host.os === "mac_os";
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);

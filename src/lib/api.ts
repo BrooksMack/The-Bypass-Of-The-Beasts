@@ -40,6 +40,8 @@ export interface Api {
   cancelOperation(): Promise<boolean>;
   createVm(): Promise<VmRecord>;
   vmStatus(): Promise<VmStatusReport>;
+  listCameras(): Promise<{ alias: string; name: string }[]>;
+  mediaAction(action: { kind: "microphone"; enabled: boolean } | { kind: "attach_camera" | "detach_camera"; alias: string }): Promise<string>;
   startVm(): Promise<string>;
   shutdownVm(): Promise<string>;
   saveStateVm(): Promise<string>;
@@ -138,6 +140,8 @@ async function tauriApi(): Promise<Api> {
     cancelOperation: () => invoke("cancel_operation"),
     createVm: () => invoke("create_vm"),
     vmStatus: () => invoke("vm_status"),
+    listCameras: () => invoke("list_cameras"),
+    mediaAction: (action) => invoke("media_action", { action }),
     startVm: () => invoke("start_vm"),
     shutdownVm: () => invoke("shutdown_vm"),
     saveStateVm: () => invoke("save_state_vm"),

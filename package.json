@@ -1,7 +1,7 @@
 {
   "name": "vm-setup-assistant",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1-preview.1",
   "type": "module",
   "description": "Friendly desktop assistant that sets up a Windows 11 virtual machine with Oracle VirtualBox",
   "license": "MIT",

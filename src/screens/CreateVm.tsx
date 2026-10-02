@@ -1,3 +1,4 @@
+import { vmConfigured } from "../lib/setup-state";
 import { useEffect, useState } from "react";
 import { errorMessage, type Api } from "../lib/api";
 import type { HostReport, ProgressEvent, SetupState } from "../lib/types";
@@ -8,7 +9,7 @@ export function CreateVm({ api, report, state, refresh, onNext }: { api: Api; re
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const done = !!state.vm && state.vm.completed_steps.length > 0;
+  const done = vmConfigured(state);
 
   useEffect(() => {
     let off: (() => void) | undefined;

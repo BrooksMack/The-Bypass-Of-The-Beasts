@@ -1,3 +1,4 @@
+import { MediaDevices } from "../components/MediaDevices";
 import { useEffect, useState } from "react";
 import { errorMessage, type Api } from "../lib/api";
 import type { Diagnosis, HostReport, RepairAction, SetupState, VmStatusReport } from "../lib/types";
@@ -74,9 +75,7 @@ export function Dashboard({ api, report, state, refresh, onGoTo }: { api: Api; r
                 </button>
               ) : (
                 <>
-                  <button className="primary" onClick={() => act(api.startVm)} disabled={busy}>
-                    Open the Windows window
-                  </button>
+                  <p>Windows is running in its own window. Select it in the Dock or taskbar; for a hidden session, select the VM in VirtualBox and choose Show.</p>
                   <button onClick={() => act(api.shutdownVm)} disabled={busy}>
                     Shut down Windows normally
                   </button>
@@ -110,6 +109,7 @@ export function Dashboard({ api, report, state, refresh, onGoTo }: { api: Api; r
               </details>
             )}
           </Panel>
+          <MediaDevices api={api} running={running} isMac={report.host.os === "mac_os"} />
           <Panel title="Health">
             <ul className="status-list">
               <li>

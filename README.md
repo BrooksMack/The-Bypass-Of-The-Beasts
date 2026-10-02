@@ -1,5 +1,7 @@
 # VM Setup Assistant
 
+The Apple Silicon changes in 0.1.1-preview.1 are built by the **Apple Silicon preview** GitHub Actions workflow. Download its `Apple-Silicon-preview` artifact for the DMG and SHA-256 checksums. Existing v0.1.0 release links below remain the last published release. See [Mac camera, microphone and privacy setup](docs/MACBOOK-SETUP.md).
+
 **A friendly desktop app that sets up a Windows 11 virtual machine on your computer, step by step, using Oracle VirtualBox.**
 
 > **Status: preview.** The app builds and its logic is tested, but the full "install Windows" path has **not yet been verified end-to-end on real hardware by this project**. Installers are currently **unsigned preview builds**. Read [What works today](#6-what-works-today-and-what-is-still-experimental) before relying on it.

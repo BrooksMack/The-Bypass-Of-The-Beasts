@@ -223,7 +223,7 @@ export function createMockApi(opts: MockOptions = {}): Api {
         emit({ operation: "create-vm", step: steps[i], detail: null, bytes_done: null, bytes_total: null, bytes_per_sec: null, step_index: i + 1, step_count: steps.length });
         await sleep(delayMs / 2);
       }
-      const vm: VmRecord = { uuid: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", name: state.choices.vm_name, config_file: null, disk_path: null, base_folder: state.choices.base_folder, created_by_app: true, created_at: new Date().toISOString(), original_config: {}, install_iso_attached: true, guest_additions_iso_attached: true, completed_steps: steps };
+      const vm: VmRecord = { uuid: "3f2504e0-4f89-41d3-9a0c-0305e82c3301", name: state.choices.vm_name, config_file: null, disk_path: null, base_folder: state.choices.base_folder, created_by_app: true, created_at: new Date().toISOString(), original_config: {}, install_iso_attached: true, guest_additions_iso_attached: true, completed_steps: steps, configuration_complete: true };
       state.vm = vm;
       state.stage = "install_windows";
       return vm;
@@ -231,6 +231,8 @@ export function createMockApi(opts: MockOptions = {}): Api {
     async vmStatus() {
       return vmStatus();
     },
+    async listCameras() { return [{ alias: ".1", name: "FaceTime HD Camera (simulated)" }]; },
+    async mediaAction(action) { return `Applied ${action.kind} (MOCK). Test inside Windows to verify.`; },
     async startVm() {
       running = true;
       setTimeout(() => {

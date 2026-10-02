@@ -425,6 +425,11 @@ pub fn parse_windows_virt_json(json: &str) -> (Tri, Tri, Option<String>) {
     )
 }
 
+/// Boot timestamp used to distinguish detection from an actual host restart.
+pub fn boot_time() -> u64 {
+    sysinfo::System::boot_time()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

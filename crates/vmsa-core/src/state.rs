@@ -80,6 +80,25 @@ pub struct VirtualBoxState {
     pub installer_outcome: Option<String>,
     /// Set when the installer said a reboot is needed; cleared once VirtualBox is detected after boot.
     pub reboot_pending: bool,
+    #[serde(default)]
+    pub reboot_requested_boot_time: Option<u64>,
+}
+
+impl VirtualBoxState {
+    /// Detection alone is not evidence of a restart: VBoxManage can run before drivers are ready.
+    pub fn observe_boot(&mut self, boot_time: u64, detected: bool) {
+        if !self.reboot_pending || boot_time == 0 {
+            return;
+        }
+        match self.reboot_requested_boot_time {
+            Some(previous) if previous != boot_time && detected => {
+                self.reboot_pending = false;
+                self.reboot_requested_boot_time = None;
+            }
+            None => self.reboot_requested_boot_time = Some(boot_time),
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -98,6 +117,19 @@ pub struct VmRecord {
     pub guest_additions_iso_attached: bool,
     /// Which `configure` steps completed (idempotent resume of a partially created VM).
     pub completed_steps: Vec<String>,
+    #[serde(default)]
+    pub configuration_complete: bool,
+}
+
+impl VmRecord {
+    pub fn is_configured(&self) -> bool {
+        // The final step is a compatibility marker for complete v0.1.0 state files.
+        self.configuration_complete
+            || self
+                .completed_steps
+                .iter()
+                .any(|s| s == "Record the setup id")
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -225,7 +257,7 @@ impl SetupState {
     /// Where a reopened app should resume, derived from durable facts rather than the last stage
     /// alone (a VM that exists is never re-created; a verified download is never repeated).
     pub fn resume_stage(&self) -> Stage {
-        if self.vm.is_some() {
+        if let Some(vm) = &self.vm {
             if self.guest.windows_installed == Verified::Yes {
                 return if self.stage >= Stage::Dashboard {
                     Stage::Dashboard
@@ -233,7 +265,11 @@ impl SetupState {
                     Stage::FinishAndVerify.max(self.stage)
                 };
             }
-            return Stage::InstallWindows;
+            return if vm.is_configured() {
+                Stage::InstallWindows
+            } else {
+                Stage::CreateVm
+            };
         }
         if self.stage >= Stage::CreateVm {
             return Stage::CreateVm;
@@ -369,6 +405,32 @@ mod tests {
     }
 
     #[test]
+    fn reboot_requires_a_different_boot_and_detection() {
+        let mut vb = VirtualBoxState {
+            reboot_pending: true,
+            reboot_requested_boot_time: Some(100),
+            ..Default::default()
+        };
+        vb.observe_boot(100, true);
+        assert!(vb.reboot_pending);
+        vb.observe_boot(200, false);
+        assert!(vb.reboot_pending);
+        vb.observe_boot(200, true);
+        assert!(!vb.reboot_pending);
+        assert_eq!(vb.reboot_requested_boot_time, None);
+        let mut legacy = VirtualBoxState {
+            reboot_pending: true,
+            ..Default::default()
+        };
+        legacy.observe_boot(0, true);
+        assert!(legacy.reboot_pending);
+        legacy.observe_boot(300, true);
+        assert!(legacy.reboot_pending);
+        legacy.observe_boot(400, true);
+        assert!(!legacy.reboot_pending);
+    }
+
+    #[test]
     fn roundtrip_and_atomic_save() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("setup-state.json");
@@ -426,7 +488,10 @@ mod tests {
             install_iso_attached: true,
             guest_additions_iso_attached: true,
             completed_steps: vec![],
+            configuration_complete: false,
         });
+        assert_eq!(s.resume_stage(), Stage::CreateVm);
+        s.vm.as_mut().unwrap().configuration_complete = true;
         assert_eq!(s.resume_stage(), Stage::InstallWindows);
         s.guest.windows_installed = Verified::Yes;
         assert_eq!(s.resume_stage(), Stage::FinishAndVerify);

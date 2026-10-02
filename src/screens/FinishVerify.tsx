@@ -1,3 +1,4 @@
+import { MediaDevices } from "../components/MediaDevices";
 import { useEffect, useState } from "react";
 import { errorMessage, type Api } from "../lib/api";
 import type { GuestItem, HostReport, SetupState, VmStatusReport } from "../lib/types";
@@ -122,6 +123,7 @@ export function FinishVerify({ api, report, state, refresh, onNext }: { api: Api
               </button>
             </div>
           </Panel>
+          <MediaDevices api={api} running={running} isMac={report.host.os === "mac_os"} />
           <div className="actions">
             <button className="primary" onClick={onNext}>
               Go to everyday use
