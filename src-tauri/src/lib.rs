@@ -117,6 +117,8 @@ pub fn run() {
             commands::cancel_operation,
             commands::create_vm,
             commands::vm_status,
+            commands::list_cameras,
+            commands::media_action,
             commands::start_vm,
             commands::shutdown_vm,
             commands::save_state_vm,

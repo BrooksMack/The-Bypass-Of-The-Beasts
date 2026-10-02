@@ -191,6 +191,7 @@ export interface VirtualBoxState {
   installer_download: DownloadRecord | null;
   installer_outcome: string | null;
   reboot_pending: boolean;
+  reboot_requested_boot_time?: number | null;
 }
 
 export interface VmRecord {
@@ -205,6 +206,7 @@ export interface VmRecord {
   install_iso_attached: boolean;
   guest_additions_iso_attached: boolean;
   completed_steps: string[];
+  configuration_complete: boolean;
 }
 
 export interface GuestStatus {

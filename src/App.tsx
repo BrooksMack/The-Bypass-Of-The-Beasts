@@ -1,3 +1,4 @@
+import { resumeStage, vmConfigured } from "./lib/setup-state";
 import { useCallback, useEffect, useState } from "react";
 import { errorMessage, getApi, type Api } from "./lib/api";
 import { STAGES, type AppInfo, type HostReport, type SetupState, type Stage } from "./lib/types";
@@ -24,8 +25,8 @@ export default function App() {
   const refresh = useCallback(
     async (withHost?: boolean) => {
       if (!api) return;
-      setState(await api.getState());
       if (withHost) setReport(await api.inspectHost());
+      setState(await api.getState());
     },
     [api],
   );
@@ -84,15 +85,6 @@ export default function App() {
     );
   }
 
-  const resumeStage = (): Stage => {
-    // Mirror of SetupState::resume_stage on the Rust side, using durable facts.
-    if (state.vm) {
-      if (state.guest.windows_installed === "yes") return ORDER.indexOf(state.stage) >= ORDER.indexOf("dashboard") ? "dashboard" : "finish_and_verify";
-      return "install_windows";
-    }
-    if (ORDER.indexOf(state.stage) >= ORDER.indexOf("create_vm")) return "create_vm";
-    return state.stage === "welcome" ? "check_computer" : state.stage;
-  };
 
   const needReport = view !== "welcome" && !report;
   const next = (s: Stage) => () => goTo(s);
@@ -118,7 +110,7 @@ export default function App() {
           <div className="brand">VM Setup Assistant</div>
           <ol>
             {STAGES.map((s, i) => {
-              const reachable = visited(s.id) || s.id === view || (state.vm != null && s.id === "dashboard");
+              const reachable = (visited(s.id) || s.id === view || (vmConfigured(state) && s.id === "dashboard")) && (ORDER.indexOf(s.id) <= ORDER.indexOf("create_vm") || vmConfigured(state));
               return (
                 <li key={s.id} aria-current={view === s.id ? "step" : undefined} className={visited(s.id) && view !== s.id ? "done" : ""}>
                   <span className="step-num" aria-hidden>
@@ -147,7 +139,7 @@ export default function App() {
           {view === "welcome" && (
             <Welcome
               hasProgress={state.stage !== "welcome"}
-              onResume={() => goTo(resumeStage())}
+              onResume={() => goTo(resumeStage(state))}
               onStart={async () => {
                 if (state.stage !== "welcome") {
                   if (!window.confirm("Start over? Your existing VM (if any) is kept in VirtualBox and can be managed there.")) return;
@@ -171,7 +163,7 @@ export default function App() {
               }}
             />
           )}
-          {view === "obtain_files" && report && <ObtainFiles api={api} report={report} state={state} refresh={refresh} onNext={next(report.virtualbox && report.virtualbox_version_ok !== false ? "create_vm" : "install_dependencies")} />}
+          {view === "obtain_files" && report && <ObtainFiles api={api} report={report} state={state} refresh={refresh} onNext={next(report.virtualbox && report.virtualbox_version_ok !== false && !state.virtualbox.reboot_pending ? "create_vm" : "install_dependencies")} />}
           {view === "install_dependencies" && report && <InstallDependencies api={api} report={report} state={state} refresh={refresh} onNext={next("create_vm")} />}
           {view === "create_vm" && report && <CreateVm api={api} report={report} state={state} refresh={refresh} onNext={next("install_windows")} />}
           {view === "install_windows" && report && <InstallWindows api={api} report={report} state={state} refresh={refresh} onNext={next("finish_and_verify")} />}

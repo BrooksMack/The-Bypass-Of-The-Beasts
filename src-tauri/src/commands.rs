@@ -111,9 +111,8 @@ pub async fn redetect_virtualbox(
     let v = vmsa_core::vbox::client::detect(host.os).await?;
     let mut st = app.state.lock().await;
     st.virtualbox.detected_version = v.as_ref().map(|x| x.version_raw.clone());
-    if v.is_some() {
-        st.virtualbox.reboot_pending = false;
-    }
+    st.virtualbox
+        .observe_boot(vmsa_core::host::boot_time(), v.is_some());
     drop(st);
     app.save().await?;
     Ok(v)
@@ -257,4 +256,26 @@ pub async fn forget_setup(app: App<'_>) -> Result<SetupState> {
     drop(st);
     app.save().await?;
     Ok(s)
+}
+
+#[tauri::command]
+pub async fn list_cameras() -> Result<Vec<vmsa_core::media::Camera>> {
+    let host = vmsa_core::host::inspect().await;
+    let vb = vmsa_core::vbox::client::detect(host.os)
+        .await?
+        .ok_or(CoreError::VirtualBoxNotFound)?;
+    let vbm = vmsa_core::vbox::client::VBoxManage::new(vb.vboxmanage);
+    let out = vbm
+        .run_raw(
+            &["list".into(), "webcams".into()],
+            std::time::Duration::from_secs(60),
+            None,
+        )
+        .await?;
+    Ok(vmsa_core::media::parse_cameras(&out.stdout))
+}
+
+#[tauri::command]
+pub async fn media_action(app: App<'_>, action: vmsa_core::media::MediaAction) -> Result<String> {
+    setup::media_action(&app, action).await
 }

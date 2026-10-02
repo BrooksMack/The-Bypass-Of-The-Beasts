@@ -66,7 +66,7 @@ describe("guided flow (mock backend)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Go to everyday use" }));
 
     // Dashboard
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Windows 11" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Desktop" })).toBeInTheDocument());
     expect(screen.getByText(/Closing this assistant/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "Troubleshooting" }));
     fireEvent.click(screen.getByRole("button", { name: "Check the network" }));

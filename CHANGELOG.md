@@ -3,6 +3,29 @@
 All notable changes to VM Setup Assistant are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.1-preview.1] - 2026-10-02
+
+### Fixed
+
+- Keep interrupted VM configuration retryable, and resume configuration before Windows Setup.
+- Reject malformed ISO directory records without crashing.
+- Preserve required host restarts until a different boot is observed and VirtualBox is detected.
+- Replace the nonfunctional "Open the Windows window" action with accurate window-switching guidance.
+
+### Added
+
+- Camera discovery, attach/detach controls with a 30 FPS limit, microphone enable/disable controls,
+  and macOS/Windows permission and recording-test guidance.
+- Neutral default VM name (Desktop); explicit disabled clipboard and drag-and-drop sharing for new VMs.
+- Apple Silicon GitHub preview workflow with Rust and frontend tests and a downloadable DMG/checksums.
+- Regression coverage for partial setup, restart gating, malformed ISO input and media actions.
+
+### Limitations
+
+- Virtual hardware remains identifiable. Guest Additions and supported ARM devices are retained for usability.
+- Camera, microphone, host permissions and complete Windows installation still require a physical Mac test.
+- Apple Silicon preview artifacts are ad-hoc signed, not notarized.
+
 ## [0.1.0] - 2026-09-28 (preview)
 
 First preview. Nothing in this release has been verified end-to-end on real hardware by the project;

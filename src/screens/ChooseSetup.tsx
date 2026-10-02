@@ -6,7 +6,7 @@ import { ErrorBox, Panel } from "../components/ui";
 export function ChooseSetup({ api, report, state, onSaved }: { api: Api; report: HostReport; state: SetupState; onSaved: () => void }) {
   const limits = report.limits!;
   const c = state.choices;
-  const [name, setName] = useState(c?.vm_name ?? "Windows 11");
+  const [name, setName] = useState(c?.vm_name ?? "Desktop");
   const [folder, setFolder] = useState(c?.base_folder ?? report.default_base_folder);
   const [ram, setRam] = useState(c?.sizing.ram_mb ?? limits.recommended_ram_mb);
   const [cpus, setCpus] = useState(c?.sizing.cpus ?? limits.recommended_cpus);

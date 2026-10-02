@@ -170,13 +170,20 @@ fn path_exists<R: Read + Seek>(
                 off = (off / SECTOR as usize + 1) * SECTOR as usize;
                 continue;
             }
-            if off + rec_len > data.len() {
-                break;
+            if rec_len < 33 || off + rec_len > data.len() {
+                return Err(CoreError::InvalidInput(
+                    "Invalid ISO directory record length.".into(),
+                ));
             }
             let rec = &data[off..off + rec_len];
             let name_len = rec[32] as usize;
+            if name_len == 0 || 33 + name_len > rec.len() {
+                return Err(CoreError::InvalidInput(
+                    "Invalid ISO directory filename length.".into(),
+                ));
+            }
             let flags = rec[25];
-            let raw_name = &rec[33..(33 + name_len).min(rec.len())];
+            let raw_name = &rec[33..33 + name_len];
             let name = if joliet {
                 let units: Vec<u16> = raw_name
                     .chunks(2)
@@ -373,6 +380,21 @@ mod tests {
         let info = inspect_reader(&mut Cursor::new(&img), img.len() as u64, "u.iso").unwrap();
         assert!(!info.looks_like_windows);
         assert!(info.suitable_for(GuestArch::X64).is_err());
+    }
+
+    #[test]
+    fn malformed_directory_records_do_not_panic() {
+        for rec_len in 1..33u8 {
+            let mut image = build_iso("BAD", dir("", vec![file("X")]));
+            image[18 * 2048] = rec_len;
+            let info =
+                inspect_reader(&mut Cursor::new(&image), image.len() as u64, "bad.iso").unwrap();
+            assert!(!info.looks_like_windows);
+        }
+        let mut image = build_iso("BAD", dir("", vec![file("X")]));
+        image[18 * 2048 + 32] = 255;
+        let info = inspect_reader(&mut Cursor::new(&image), image.len() as u64, "bad.iso").unwrap();
+        assert!(!info.looks_like_windows);
     }
 
     #[test]

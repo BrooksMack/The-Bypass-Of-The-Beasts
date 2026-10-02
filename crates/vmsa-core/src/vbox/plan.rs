@@ -131,6 +131,21 @@ pub fn configure(
         120,
     ));
 
+    plan.push(cmd(
+        "Disable host clipboard and drag-and-drop sharing",
+        &[
+            "modifyvm",
+            uuid,
+            "--clipboard-mode",
+            "disabled",
+            "--clipboard-file-transfers",
+            "disabled",
+            "--drag-and-drop",
+            "disabled",
+        ],
+        120,
+    ));
+
     let size_mb = (spec.sizing.disk_gb as u64 * 1024).to_string();
     let disk = disk_path.to_string_lossy().into_owned();
     plan.push(cmd(
@@ -552,6 +567,31 @@ mod tests {
         assert!(validate_vm_name("a/b").is_err());
         assert!(validate_vm_name(" x").is_err());
         assert!(validate_vm_name(&"x".repeat(65)).is_err());
+    }
+
+    #[test]
+    fn new_vms_do_not_share_clipboard_or_drag_and_drop() {
+        for arch in [GuestArch::Arm64, GuestArch::X64] {
+            let s = spec(arch, "Desktop");
+            let steps = configure(&s, "u", &[], &disk_path_for(&s));
+            let privacy = steps
+                .iter()
+                .find(|s| s.description == "Disable host clipboard and drag-and-drop sharing")
+                .unwrap();
+            assert_eq!(
+                privacy.args,
+                vec![
+                    "modifyvm",
+                    "u",
+                    "--clipboard-mode",
+                    "disabled",
+                    "--clipboard-file-transfers",
+                    "disabled",
+                    "--drag-and-drop",
+                    "disabled"
+                ]
+            );
+        }
     }
 
     #[test]

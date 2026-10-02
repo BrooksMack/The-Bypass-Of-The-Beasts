@@ -20,6 +20,7 @@ pub mod error;
 pub mod host;
 pub mod installer;
 pub mod iso;
+pub mod media;
 pub mod network;
 pub mod paths;
 pub mod profile;
